@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { SocketIoModule, SocketIoConfig } from 'ngx-socket-io';
@@ -44,43 +44,36 @@ const socketIoConfig: SocketIoConfig = {
   } 
 };
 
-@NgModule({
-  declarations: [
-    AppComponent,
-    DownloadFormComponent,
-    DownloadHistoryComponent,
-    DownloadProgressComponent,
-    SettingsComponent
-  ],
-  imports: [
-    BrowserModule,
-    CommonModule,
-    BrowserAnimationsModule,
-    HttpClientModule,
-    MaterialModule,
-    FormsModule,
-    ReactiveFormsModule,
-    RouterModule,
-    AppRoutingModule,
-    SocketIoModule.forRoot(socketIoConfig),
-    // Angular Material
-    MatToolbarModule,
-    MatButtonModule,
-    MatInputModule,
-    MatFormFieldModule,
-    MatSelectModule,
-    MatCheckboxModule,
-    MatCardModule,
-    MatProgressBarModule,
-    MatIconModule,
-    MatListModule,
-    MatSnackBarModule,
-    MatTabsModule,
-    MatExpansionModule,
-    MatTooltipModule,
-    MatDialogModule
-  ],
-  providers: [],
-  bootstrap: [AppComponent]
-})
+@NgModule({ declarations: [
+        AppComponent,
+        DownloadFormComponent,
+        DownloadHistoryComponent,
+        DownloadProgressComponent,
+        SettingsComponent
+    ],
+    bootstrap: [AppComponent], imports: [BrowserModule,
+        CommonModule,
+        BrowserAnimationsModule,
+        MaterialModule,
+        FormsModule,
+        ReactiveFormsModule,
+        RouterModule,
+        AppRoutingModule,
+        SocketIoModule.forRoot(socketIoConfig),
+        // Angular Material
+        MatToolbarModule,
+        MatButtonModule,
+        MatInputModule,
+        MatFormFieldModule,
+        MatSelectModule,
+        MatCheckboxModule,
+        MatCardModule,
+        MatProgressBarModule,
+        MatIconModule,
+        MatListModule,
+        MatSnackBarModule,
+        MatTabsModule,
+        MatExpansionModule,
+        MatTooltipModule,
+        MatDialogModule], providers: [provideHttpClient(withInterceptorsFromDi())] })
 export class AppModule { }
