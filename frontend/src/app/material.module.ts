@@ -1,46 +1,42 @@
-// src/app/material.module.ts
 import { NgModule } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
+import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
+
+// Material Imports
 import { MatCardModule } from '@angular/material/card';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
+import { MatExpansionModule } from '@angular/material/expansion';
+
+const MATERIAL_MODULES = [
+  MatCardModule,
+  MatButtonModule,
+  MatIconModule,
+  MatFormFieldModule,
+  MatInputModule,
+  MatSelectModule,
+  MatCheckboxModule,
+  MatProgressBarModule,
+  MatProgressSpinnerModule,
+  MatExpansionModule
+];
 
 @NgModule({
+  imports: [
+    CommonModule,
+    ...MATERIAL_MODULES
+  ],
   exports: [
-    MatButtonModule,
-    MatCardModule,
-    MatCheckboxModule,
-    MatExpansionModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
-    MatSelectModule
+    ...MATERIAL_MODULES
+  ],
+  providers: [
+    DatePipe
   ]
 })
 export class MaterialModule { }
-
-// app.module.ts - Add to imports
-// Import the MaterialModule:
-import { MaterialModule } from './material.module';
-import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-
-// Make sure these are included in the imports array:
-@NgModule({
-  imports: [
-    // ... existing imports
-    CommonModule,
-    FormsModule,
-    ReactiveFormsModule,
-    MaterialModule
-  ],
-  // ...
-})
