@@ -1,24 +1,36 @@
 {
   "name": "clippy",
   "version": "1.0.0",
-  "main": "index.js",
-  "description": "",
-  "author": "",
-  "license": "ISC",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/telltaleatheist/clippy.git"
-  },
-  "bugs": {
-    "url": "https://github.com/telltaleatheist/clippy/issues"
-  },
-  "homepage": "https://github.com/telltaleatheist/clippy#readme",
-  "keywords": [],
-  "devDependencies": {
-    "electron": "^35.1.4"
-  },
+  "description": "Video downloader application using NestJS and Angular",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm run start:dev",
+    "start:frontend": "cd frontend && npm run start",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd frontend && npm run test"
+  },
+  "keywords": [
+    "video",
+    "downloader",
+    "nestjs",
+    "angular",
+    "typescript",
+    "youtube",
+    "tiktok"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "ngx-socket-io": "^4.3.1"
   }
 }
