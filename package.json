@@ -1,12 +1,24 @@
 {
-  "name": "app",
+  "name": "clippy",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
+  "description": "",
   "author": "",
   "license": "ISC",
-  "description": ""
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/telltaleatheist/clippy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/telltaleatheist/clippy/issues"
+  },
+  "homepage": "https://github.com/telltaleatheist/clippy#readme",
+  "keywords": [],
+  "devDependencies": {
+    "electron": "^35.1.4"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron ."
+  }
 }
