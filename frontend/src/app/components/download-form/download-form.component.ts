@@ -61,7 +61,9 @@ export class DownloadFormComponent implements OnInit {
         
         if (result) {
           this.isValidUrl = result.valid;
-          this.urlInfo = result.info;
+          if (result && 'info' in result) {
+            this.urlInfo = result.info;
+          }
           
           if (!result.valid) {
             this.downloadForm.get('url')?.setErrors({ invalidUrl: true });

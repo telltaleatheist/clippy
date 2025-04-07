@@ -44,10 +44,10 @@
       
       <!-- Video info preview -->
       <div *ngIf="urlInfo && isValidUrl" class="video-info">
-        <h3>{{ urlInfo.title }}</h3>
-        <p *ngIf="urlInfo.uploader">Uploaded by: {{ urlInfo.uploader }}</p>
-        <p *ngIf="urlInfo.duration">Duration: {{ urlInfo.duration | date:'mm:ss' }}</p>
-        <img *ngIf="urlInfo.thumbnail" [src]="urlInfo.thumbnail" alt="Video thumbnail" class="thumbnail">
+        <h3>{{ urlInfo?.title }}</h3>
+        <p *ngIf="urlInfo?.uploader">Uploaded by: {{ urlInfo?.uploader }}</p>
+        <p *ngIf="urlInfo?.duration">Duration: {{ urlInfo?.duration | date:'mm:ss' }}</p>
+        <img *ngIf="urlInfo?.thumbnail" [src]="urlInfo?.thumbnail" alt="Video thumbnail" class="thumbnail">
       </div>
       
       <!-- Basic options -->

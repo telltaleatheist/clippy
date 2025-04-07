@@ -1,10 +1,12 @@
 import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { SocketIoModule, SocketIoConfig } from 'ngx-socket-io';
+import { MaterialModule } from './material.module';
 
 // Angular Material
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -52,8 +54,10 @@ const socketIoConfig: SocketIoConfig = {
   ],
   imports: [
     BrowserModule,
+    CommonModule,
     BrowserAnimationsModule,
     HttpClientModule,
+    MaterialModule,
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
