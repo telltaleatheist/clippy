@@ -1,19 +1,53 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatOptionModule } from '@angular/material/core';
+import { FormsModule } from '@angular/forms';
+
 import { ApiService } from '../../services/api.service';
 import { SettingsService } from '../../services/settings.service';
 import { Settings } from '../../models/settings.model';
 import { DownloadOptions, VideoInfo } from '../../models/download.model';
 import { BROWSER_OPTIONS, QUALITY_OPTIONS } from './download-form.constants';
+
 import { debounceTime, distinctUntilChanged, switchMap, catchError, of } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
 
 @Component({
   selector: 'app-download-form',
+  standalone: true,
   templateUrl: './download-form.component.html',
-  styleUrls: ['./download-form.component.scss']
+  styleUrls: ['./download-form.component.scss'],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    FormsModule,
+    MatSnackBarModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatCheckboxModule,
+    MatExpansionModule,
+    MatIconModule,
+    MatButtonModule,
+    MatOptionModule,
+    MatCardModule
+  ]
 })
 export class DownloadFormComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private apiService = inject(ApiService);
+  private settingsService = inject(SettingsService);
+  private snackBar = inject(MatSnackBar);
+
   downloadForm: FormGroup;
   advancedOptionsExpanded = false;
   isLoading = false;
@@ -23,22 +57,15 @@ export class DownloadFormComponent implements OnInit {
   isValidUrl = false;
   isCheckingUrl = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private apiService: ApiService,
-    private settingsService: SettingsService,
-    private snackBar: MatSnackBar
-  ) {
+  constructor() {
     this.downloadForm = this.createForm();
   }
 
   ngOnInit(): void {
-    // Load saved settings
     this.settingsService.getSettings().subscribe(settings => {
       this.updateFormWithSettings(settings);
     });
 
-    // Add URL validator with debounce
     this.downloadForm.get('url')?.valueChanges
       .pipe(
         debounceTime(500),
@@ -49,7 +76,7 @@ export class DownloadFormComponent implements OnInit {
             this.isValidUrl = false;
             return of(null);
           }
-          
+
           this.isCheckingUrl = true;
           return this.apiService.checkUrl(url).pipe(
             catchError(() => of({ valid: false, message: 'Error checking URL' }))
@@ -58,13 +85,13 @@ export class DownloadFormComponent implements OnInit {
       )
       .subscribe(result => {
         this.isCheckingUrl = false;
-        
+
         if (result) {
           this.isValidUrl = result.valid;
           if (result && 'info' in result) {
             this.urlInfo = result.info;
           }
-          
+
           if (!result.valid) {
             this.downloadForm.get('url')?.setErrors({ invalidUrl: true });
           }
@@ -100,9 +127,7 @@ export class DownloadFormComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.downloadForm.invalid) {
-      return;
-    }
+    if (this.downloadForm.invalid) return;
 
     const formValue = this.downloadForm.value;
     const downloadOptions: DownloadOptions = {
@@ -113,7 +138,7 @@ export class DownloadFormComponent implements OnInit {
       browser: formValue.useCookies ? formValue.browser : null,
       fixAspectRatio: formValue.fixAspectRatio,
       outputDir: formValue.outputDir || undefined,
-      fps: 30 // Default FPS
+      fps: 30
     };
 
     this.isLoading = true;
@@ -122,26 +147,19 @@ export class DownloadFormComponent implements OnInit {
       next: (result) => {
         this.isLoading = false;
         if (result.success) {
-          this.snackBar.open('Download started!', 'Dismiss', {
-            duration: 3000
-          });
+          this.snackBar.open('Download started!', 'Dismiss', { duration: 3000 });
           this.downloadForm.get('url')?.reset();
           this.urlInfo = null;
         } else {
-          this.snackBar.open(`Download error: ${result.error}`, 'Dismiss', {
-            duration: 5000
-          });
+          this.snackBar.open(`Download error: ${result.error}`, 'Dismiss', { duration: 5000 });
         }
       },
       error: (error) => {
         this.isLoading = false;
-        this.snackBar.open(`Server error: ${error.message || 'Unknown error'}`, 'Dismiss', {
-          duration: 5000
-        });
+        this.snackBar.open(`Server error: ${error.message || 'Unknown error'}`, 'Dismiss', { duration: 5000 });
       }
     });
 
-    // Save settings
     this.settingsService.updateSettings({
       quality: formValue.quality,
       convertToMp4: formValue.convertToMp4,
@@ -158,18 +176,12 @@ export class DownloadFormComponent implements OnInit {
       if (clipboardText) {
         this.downloadForm.get('url')?.setValue(clipboardText);
       }
-    } catch (error) {
-      this.snackBar.open('Failed to read from clipboard', 'Dismiss', {
-        duration: 3000
-      });
+    } catch {
+      this.snackBar.open('Failed to read from clipboard', 'Dismiss', { duration: 3000 });
     }
   }
 
   browseOutputDir(): void {
-    // This would typically open a file dialog, but we're restricted in web apps
-    // In a desktop app using Electron, you could implement a native file picker here
-    this.snackBar.open('File picking is not available in the web version', 'Dismiss', {
-      duration: 3000
-    });
+    this.snackBar.open('File picking is not available in the web version', 'Dismiss', { duration: 3000 });
   }
 }

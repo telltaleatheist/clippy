@@ -1,17 +1,48 @@
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
+
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatOptionModule } from '@angular/material/core';
+
 import { SettingsService } from '../../services/settings.service';
 import { Settings } from '../../models/settings.model';
 import { BROWSER_OPTIONS, QUALITY_OPTIONS } from '../download-form/download-form.constants';
 
 @Component({
   selector: 'app-settings',
+  standalone: true,
   templateUrl: './settings.component.html',
-  styleUrls: ['./settings.component.scss']
+  styleUrls: ['./settings.component.scss'],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    RouterModule,
+    MatSnackBarModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatCheckboxModule,
+    MatIconModule,
+    MatButtonModule,
+    MatOptionModule
+  ]
 })
 export class SettingsComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private settingsService = inject(SettingsService);
+  private snackBar = inject(MatSnackBar);
+  private router = inject(Router);
+
   settingsForm: FormGroup;
   browserOptions = BROWSER_OPTIONS;
   qualityOptions = QUALITY_OPTIONS;
@@ -19,18 +50,12 @@ export class SettingsComponent implements OnInit {
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' }
   ];
-  
-  constructor(
-    private fb: FormBuilder,
-    private settingsService: SettingsService,
-    private snackBar: MatSnackBar,
-    private router: Router
-  ) {
+
+  constructor() {
     this.settingsForm = this.createForm();
   }
 
   ngOnInit(): void {
-    // Load current settings
     this.settingsService.getSettings().subscribe(settings => {
       this.updateForm(settings);
     });
@@ -61,33 +86,21 @@ export class SettingsComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.settingsForm.invalid) {
-      return;
-    }
+    if (this.settingsForm.invalid) return;
 
-    const formValue = this.settingsForm.value;
-    this.settingsService.updateSettings(formValue);
-    
-    this.snackBar.open('Settings saved', 'Dismiss', {
-      duration: 3000
-    });
+    this.settingsService.updateSettings(this.settingsForm.value);
+    this.snackBar.open('Settings saved', 'Dismiss', { duration: 3000 });
   }
 
   resetToDefaults(): void {
     if (confirm('Are you sure you want to reset all settings to defaults?')) {
       this.settingsService.resetSettings();
-      this.snackBar.open('Settings reset to defaults', 'Dismiss', {
-        duration: 3000
-      });
+      this.snackBar.open('Settings reset to defaults', 'Dismiss', { duration: 3000 });
     }
   }
 
   browseOutputDir(): void {
-    // This would typically open a file dialog, but we're restricted in web apps
-    // In a desktop app using Electron, you could implement a native file picker here
-    this.snackBar.open('File picking is not available in the web version', 'Dismiss', {
-      duration: 3000
-    });
+    this.snackBar.open('File picking is not available in the web version', 'Dismiss', { duration: 3000 });
   }
 
   goBack(): void {

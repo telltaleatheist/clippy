@@ -44,13 +44,7 @@ const socketIoConfig: SocketIoConfig = {
   } 
 };
 
-@NgModule({ declarations: [
-        AppComponent,
-        DownloadFormComponent,
-        DownloadHistoryComponent,
-        DownloadProgressComponent,
-        SettingsComponent
-    ],
+@NgModule({
     bootstrap: [AppComponent], imports: [BrowserModule,
         CommonModule,
         BrowserAnimationsModule,
