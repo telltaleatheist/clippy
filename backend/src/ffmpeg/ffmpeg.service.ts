@@ -58,7 +58,7 @@ export class FfmpegService {
         resolve({
           width,
           height,
-          duration: parseFloat(duration),
+          duration: parseFloat(duration || '0'),
           codecName: codec_name,
           bitrate: bit_rate ? parseInt(bit_rate) : undefined,
           fps,
@@ -158,7 +158,7 @@ export class FfmpegService {
           }
 
           command.on('progress', (progress) => {
-            const percent = Math.round(progress.percent * 100) / 100 || 0;
+            const percent = Math.round((progress.percent || 0) * 100) / 100;
             this.server.emit('processing-progress', { 
               progress: percent,
               task: 'Adjusting aspect ratio'
@@ -212,13 +212,13 @@ export class FfmpegService {
         ffmpeg(videoPath)
           .screenshots({
             timestamps: ['10%'], // Take screenshot at 10% of the video duration
-            filename: path.basename(outputPath),
-            folder: path.dirname(outputPath),
+            filename: path.basename(outputPath || ''),
+            folder: path.dirname(outputPath || ''),
             size: '640x360', // Thumbnail size
           })
           .on('end', () => {
             this.logger.log(`Thumbnail created at: ${outputPath}`);
-            resolve(outputPath);
+            resolve(outputPath || null);
           })
           .on('error', (err) => {
             this.logger.error(`Error creating thumbnail: ${err.message}`);
