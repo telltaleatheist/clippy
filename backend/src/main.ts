@@ -4,10 +4,11 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import * as path from 'path';
+import * as fs from 'fs';
 
 async function bootstrap() {
   try {
-    // Create the NestJS app with extensive logging
+    // Create the NestJS app
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       logger: ['error', 'warn', 'log', 'debug', 'verbose'],
       abortOnError: false
@@ -16,7 +17,7 @@ async function bootstrap() {
     // Enable CORS
     app.enableCors();
 
-    // Validation pipe with minimal configuration
+    // Global validation pipe
     app.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -25,100 +26,69 @@ async function bootstrap() {
       })
     );
 
-    // Extensive route debugging
+    // Get the express adapter
     const expressApp = app.getHttpAdapter().getInstance();
-    
-    // Safely log routes
-    function logRoutes(router: express.Router) {
-      if (!router || !router.stack) {
-        console.log('No router stack found');
-        return;
+
+    // Manually serve static files
+    // Use multiple potential paths to find the frontend dist
+    const possiblePaths = [
+      path.join(process.cwd(), 'frontend', 'dist', 'clippy-frontend', 'browser'),
+      path.join(process.cwd(), '..', 'frontend', 'dist', 'clippy-frontend', 'browser'),
+      path.join(__dirname, '..', 'frontend', 'dist', 'clippy-frontend', 'browser')
+    ];
+
+    let frontendDistPath: string | null = null;
+    for (const potentialPath of possiblePaths) {
+      console.log(`Checking frontend path: ${potentialPath}`);
+      if (fs.existsSync(potentialPath)) {
+        frontendDistPath = potentialPath;
+        break;
       }
-
-      console.log('=== REGISTERED ROUTES ===');
-      router.stack.forEach((layer: any, index: number) => {
-        try {
-          if (layer.route) {
-            const routeMethods = Object.keys(layer.route)
-              .filter(key => 
-                ['get', 'post', 'put', 'delete', 'patch', 'options'].includes(key.toLowerCase())
-              );
-
-            console.log(`Route ${index}:`, {
-              path: layer.route.path || 'Unknown path',
-              methods: routeMethods
-            });
-          }
-        } catch (error) {
-          console.error(`Error logging route ${index}:`, error);
-        }
-      });
-      console.log('=== END ROUTES ===');
     }
 
-    // Log routes after a short delay
-    process.nextTick(() => {
-      try {
-        // Log main router routes
-        if (expressApp._router) {
-          console.log('Main Router Routes:');
-          logRoutes(expressApp._router);
-        }
-      } catch (error) {
-        console.error('Error logging routes:', error);
-      }
-    });
+    if (!frontendDistPath) {
+      console.error('ERROR: Could not find frontend dist directory');
+      console.error('Searched paths:', possiblePaths);
+    } else {
+      console.log(`Frontend dist path: ${frontendDistPath}`);
 
-    // Serve static files
-    const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist', 'clippy-frontend');
-    
-    try {
-      app.useStaticAssets(frontendDistPath, {
-        prefix: '/',
+      // Serve static files
+      expressApp.use(express.static(frontendDistPath, {
         index: 'index.html',
-        fallthrough: true
+        extensions: ['html']
+      }));
+
+      // Fallback route to support client-side routing
+      expressApp.get('*', (req: express.Request, res: express.Response) => {
+        console.log(`[Fallback Route] Requested URL: ${req.url}`);
+        const indexPath = path.join(frontendDistPath!, 'index.html');
+        
+        if (!fs.existsSync(indexPath)) {
+          console.error(`[ERROR] Index file not found at: ${indexPath}`);
+          return res.status(500).send('Frontend application not found');
+        }
+
+        console.log(`Serving index.html from: ${indexPath}`);
+        res.sendFile(indexPath);
       });
-      console.log(`Serving static assets from: ${frontendDistPath}`);
-    } catch (staticError) {
-      console.error('Error serving static assets:', staticError);
     }
-
-    // Fallback route handler
-    expressApp.get('*', (req: express.Request, res: express.Response) => {
-      const indexPath = path.join(frontendDistPath, 'index.html');
-      console.log(`Fallback route hit for ${req.url}, serving: ${indexPath}`);
-      res.sendFile(indexPath);
-    });
-
-    // Global error handler with explicit types
-    app.use((
-      err: Error, 
-      req: express.Request, 
-      res: express.Response, 
-      next: express.NextFunction
-    ) => {
-      console.error('Global Error Handler:', err);
-      res.status(500).json({
-        statusCode: 500,
-        message: 'Unexpected server error',
-        error: err.message || 'Internal Server Error'
-      });
-    });
 
     // Start the server
     const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
     await app.listen(port, '0.0.0.0');
-    console.log(`Application successfully started on port ${port}`);
-    console.log(`Application running at: ${await app.getUrl()}`);
-
-  } catch (error) {
-    console.error('Bootstrap Error:', error);
     
-    // Detailed error logging
+    console.log(`=== APPLICATION STARTED ===`);
+    console.log(`Server running on port ${port}`);
+  } catch (error) {
+    console.error('=== BOOTSTRAP ERROR ===');
+    console.error('Error during application startup:');
+    
     if (error instanceof Error) {
       console.error('Error Name:', error.name);
       console.error('Error Message:', error.message);
       console.error('Error Stack:', error.stack);
+    } else {
+      console.error(error);
     }
     
     process.exit(1);
@@ -126,11 +96,11 @@ async function bootstrap() {
 }
 
 // Global error handlers
-process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-process.on('uncaughtException', (error: Error) => {
+process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
 });
 
