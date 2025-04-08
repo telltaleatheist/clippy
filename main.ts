@@ -62,6 +62,9 @@ function createWindow(): void {
   // Setup binary permissions
   setupBinaries();
 
+  // Determine if we're in development mode
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 900,
@@ -72,7 +75,7 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: true,
-      webSecurity: false, // Enable web security
+      webSecurity: true, // Enable web security
       allowRunningInsecureContent: false, // Disable insecure content
       preload: path.join(__dirname, 'preload', 'preload.js')
     },
@@ -91,27 +94,34 @@ function createWindow(): void {
       }
     });
   });
-  // Add debugging event listeners
-  mainWindow.webContents.openDevTools();
-  mainWindow.webContents.on('did-start-loading', () => console.log('Started loading'));
-  mainWindow.webContents.on('did-stop-loading', () => console.log('Stopped loading'));
-  mainWindow.webContents.on('did-finish-load', () => console.log('Finished loading'));
-  mainWindow.webContents.on('did-fail-load', (_, code, desc) => console.log('Failed loading:', code, desc));
-  mainWindow.webContents.on('crashed', () => console.log('Renderer crashed'));
-  mainWindow.webContents.on('unresponsive', () => console.log('Window unresponsive'));
-  mainWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
-    console.log(`Console [${level}]: ${message} (${sourceId}:${line})`);
-  });
+
+  // Only open DevTools and add debug listeners in development mode
+  if (isDevelopment) {
+    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.on('did-start-loading', () => console.log('Started loading'));
+    mainWindow.webContents.on('did-stop-loading', () => console.log('Stopped loading'));
+    mainWindow.webContents.on('did-finish-load', () => console.log('Finished loading'));
+    mainWindow.webContents.on('did-fail-load', (_, code, desc) => console.log('Failed loading:', code, desc));
+    mainWindow.webContents.on('crashed', () => console.log('Renderer crashed'));
+    mainWindow.webContents.on('unresponsive', () => console.log('Window unresponsive'));
+    mainWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
+      console.log(`Console [${level}]: ${message} (${sourceId}:${line})`);
+    });
+  }
 
   // Create a simple server to serve Angular files
   const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
     const url = req.url || '/';
     
-    console.log(`[ELECTRON PROXY] Received request: ${url}`);
+    if (isDevelopment) {
+      console.log(`[ELECTRON PROXY] Received request: ${url}`);
+    }
     
     // Prioritize API and socket.io routes
     if (url.startsWith('/api/') || url.includes('/socket.io/')) {
-      console.log(`[ELECTRON PROXY] Proxying special route: ${url}`);
+      if (isDevelopment) {
+        console.log(`[ELECTRON PROXY] Proxying special route: ${url}`);
+      }
       
       const proxyOptions = {
         hostname: 'localhost',
@@ -177,7 +187,9 @@ function createWindow(): void {
     }
     
     // Fallback to serving index.html for client-side routing
-    console.log(`[Fallback] Serving index.html for route: ${url}`);
+    if (isDevelopment) {
+      console.log(`[Fallback] Serving index.html for route: ${url}`);
+    }
     const indexPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html');
     if (fs.existsSync(indexPath)) {
       const content = fs.readFileSync(indexPath);
@@ -190,13 +202,16 @@ function createWindow(): void {
   });
       
   server.listen(8080, 'localhost', () => {
-    console.log('Server running at http://localhost:8080/');
+    if (isDevelopment) {
+      console.log('Server running at http://localhost:8080/');
+    }
     if (mainWindow) {
       mainWindow.loadURL('http://localhost:8080/');
     }
   });
 
-  mainWindow.setMenuBarVisibility(false);
+  // Hide menu bar in production mode
+  mainWindow.setMenuBarVisibility(isDevelopment);
 
   // Handle window closed
   mainWindow.on('closed', () => {
