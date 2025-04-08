@@ -3,78 +3,135 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
-import * as fs from 'fs';
 import * as path from 'path';
 
 async function bootstrap() {
   try {
-    // Ensure required folders exist
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    const downloadsDir = path.join(process.cwd(), 'downloads');
-
-    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-    if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
-
-    // Create the NestJS app with Express
+    // Create the NestJS app with extensive logging
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-      logger: ['error', 'warn', 'log', 'debug', 'verbose']
+      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      abortOnError: false
     });
 
-    // Enable CORS for frontend
-    app.enableCors({
-      origin: 'http://localhost:4200',
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      credentials: true,
-    });
+    // Enable CORS
+    app.enableCors();
 
-    // Apply validation globally with more detailed error handling
+    // Validation pipe with minimal configuration
     app.useGlobalPipes(
       new ValidationPipe({
-        whitelist: true,
         transform: true,
-        forbidNonWhitelisted: true,
-        exceptionFactory: (errors) => {
-          console.error('Validation errors:', errors);
-          throw new Error('Validation failed');
-        }
-      }),
+        whitelist: true,
+        forbidNonWhitelisted: false,
+      })
     );
 
-    app.setGlobalPrefix('api');
-
-    // Serve Angular frontend
-    const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist', 'clippy-frontend');
+    // Extensive route debugging
+    const expressApp = app.getHttpAdapter().getInstance();
     
-    // Add error handling for static asset serving
-    try {
-      app.useStaticAssets(frontendDistPath);
-      app.setBaseViewsDir(frontendDistPath);
-    } catch (assetError) {
-      console.error('Error serving static assets:', assetError);
+    // Safely log routes
+    function logRoutes(router: express.Router) {
+      if (!router || !router.stack) {
+        console.log('No router stack found');
+        return;
+      }
+
+      console.log('=== REGISTERED ROUTES ===');
+      router.stack.forEach((layer: any, index: number) => {
+        try {
+          if (layer.route) {
+            const routeMethods = Object.keys(layer.route)
+              .filter(key => 
+                ['get', 'post', 'put', 'delete', 'patch', 'options'].includes(key.toLowerCase())
+              );
+
+            console.log(`Route ${index}:`, {
+              path: layer.route.path || 'Unknown path',
+              methods: routeMethods
+            });
+          }
+        } catch (error) {
+          console.error(`Error logging route ${index}:`, error);
+        }
+      });
+      console.log('=== END ROUTES ===');
     }
 
-    // Fallback to index.html for unknown frontend routes
-    const expressApp: express.Express = app.getHttpAdapter().getInstance();
-    expressApp.get('/*', (_req, res) => {
-      res.sendFile(path.join(frontendDistPath, 'index.html'));
+    // Log routes after a short delay
+    process.nextTick(() => {
+      try {
+        // Log main router routes
+        if (expressApp._router) {
+          console.log('Main Router Routes:');
+          logRoutes(expressApp._router);
+        }
+      } catch (error) {
+        console.error('Error logging routes:', error);
+      }
     });
+
+    // Serve static files
+    const frontendDistPath = path.join(process.cwd(), 'frontend', 'dist', 'clippy-frontend');
     
-    // Add global error handler
-    app.use((err: { message: any; }, _req: any, res: { status: (arg0: number) => { (): any; new(): any; json: { (arg0: { statusCode: number; message: string; error: any; }): void; new(): any; }; }; }, next: any) => {
-      console.error('Unhandled error:', err);
+    try {
+      app.useStaticAssets(frontendDistPath, {
+        prefix: '/',
+        index: 'index.html',
+        fallthrough: true
+      });
+      console.log(`Serving static assets from: ${frontendDistPath}`);
+    } catch (staticError) {
+      console.error('Error serving static assets:', staticError);
+    }
+
+    // Fallback route handler
+    expressApp.get('*', (req: express.Request, res: express.Response) => {
+      const indexPath = path.join(frontendDistPath, 'index.html');
+      console.log(`Fallback route hit for ${req.url}, serving: ${indexPath}`);
+      res.sendFile(indexPath);
+    });
+
+    // Global error handler with explicit types
+    app.use((
+      err: Error, 
+      req: express.Request, 
+      res: express.Response, 
+      next: express.NextFunction
+    ) => {
+      console.error('Global Error Handler:', err);
       res.status(500).json({
         statusCode: 500,
-        message: 'Internal server error',
-        error: err.message
+        message: 'Unexpected server error',
+        error: err.message || 'Internal Server Error'
       });
     });
+
+    // Start the server
+    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    await app.listen(port, '0.0.0.0');
+    console.log(`Application successfully started on port ${port}`);
+    console.log(`Application running at: ${await app.getUrl()}`);
+
+  } catch (error) {
+    console.error('Bootstrap Error:', error);
     
-    await app.listen(3000);
-    console.log(`Application is running on: ${await app.getUrl()}`);
-  } catch (bootstrapError) {
-    console.error('Failed to bootstrap application:', bootstrapError);
+    // Detailed error logging
+    if (error instanceof Error) {
+      console.error('Error Name:', error.name);
+      console.error('Error Message:', error.message);
+      console.error('Error Stack:', error.stack);
+    }
+    
     process.exit(1);
   }
 }
+
+// Global error handlers
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('Uncaught Exception:', error);
+});
 
 bootstrap();
