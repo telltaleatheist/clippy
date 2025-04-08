@@ -149,9 +149,58 @@ function createWindow(): void {
       req.pipe(proxyReq);
     
       proxyReq.on('error', (err) => {
-        console.error('[ELECTRON PROXY] Proxy error:', err);
-        res.writeHead(500);
-        res.end('Proxy error');
+        if (isDevelopment) {
+          console.error('[ELECTRON PROXY] Proxy error:', err);
+        } else {
+          console.error('[ELECTRON PROXY] Backend connection failed');
+        }
+        
+        // Return a more user-friendly error page
+        res.writeHead(503, { 'Content-Type': 'text/html' });
+        res.end(`
+          <html>
+            <head>
+              <title>Service Unavailable</title>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  text-align: center;
+                  padding: 50px;
+                  background-color: #f5f5f5;
+                }
+                .error-container {
+                  background-color: white;
+                  border-radius: 8px;
+                  padding: 30px;
+                  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                  max-width: 500px;
+                  margin: 0 auto;
+                }
+                h1 { color: #e74c3c; }
+                p { color: #333; line-height: 1.5; }
+                button {
+                  background-color: #3498db;
+                  color: white;
+                  border: none;
+                  padding: 10px 20px;
+                  border-radius: 4px;
+                  cursor: pointer;
+                  margin-top: 20px;
+                  font-size: 14px;
+                }
+                button:hover { background-color: #2980b9; }
+              </style>
+            </head>
+            <body>
+              <div class="error-container">
+                <h1>Connection Error</h1>
+                <p>Unable to connect to the backend service. This is typically because the backend server isn't running.</p>
+                <p>Please make sure the backend server is started before using the application.</p>
+                <button onclick="window.location.reload()">Retry Connection</button>
+              </div>
+            </body>
+          </html>
+        `);
       });
     
       return;
@@ -222,8 +271,74 @@ function createWindow(): void {
   autoUpdater.checkForUpdatesAndNotify();
 }
 
+/**
+ * Start the backend NestJS server
+ */
+function startBackendServer(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const { spawn } = require('child_process');
+    
+    log.info('Starting backend server...');
+    
+    // Determine the correct path to the backend server
+    const backendPath = path.join(__dirname, '../backend/dist/main.js');
+    
+    if (!fs.existsSync(backendPath)) {
+      log.error(`Backend server not found at: ${backendPath}`);
+      resolve(false);
+      return;
+    }
+    
+    // Start the NestJS process
+    const backend = spawn('node', [backendPath], {
+      env: {
+        ...process.env,
+        YT_DLP_PATH: process.env.YT_DLP_PATH,
+        FFMPEG_PATH: process.env.FFMPEG_PATH,
+        FFPROBE_PATH: process.env.FFPROBE_PATH
+      }
+    });
+    
+    // Log backend output
+    backend.stdout.on('data', (data: Buffer) => {
+      const output = data.toString().trim();
+      if (isDevelopment || output.includes('error')) {
+        log.info(`[Backend] ${output}`);
+      }
+    });
+    
+    backend.stderr.on('data', (data: Buffer) => {
+      log.error(`[Backend Error] ${data.toString().trim()}`);
+    });
+    
+    backend.on('close', (code: number) => {
+      log.info(`Backend server process exited with code ${code}`);
+    });
+    
+    // Clean up the backend server when the app exits
+    app.on('before-quit', () => {
+      log.info('Shutting down backend server...');
+      backend.kill();
+    });
+    
+    // Wait for backend to start up
+    setTimeout(() => {
+      checkBackendServer().then(isRunning => {
+        if (isRunning) {
+          log.info('Backend server started successfully');
+          resolve(true);
+        } else {
+          log.warn('Backend server may not have started properly');
+          resolve(false);
+        }
+      });
+    }, 3000);
+  });
+}
+
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Add environment variables for binary paths that NestJS can access
   process.env.YT_DLP_PATH = getBinaryPath('yt-dlp');
   process.env.FFMPEG_PATH = getBinaryPath('ffmpeg');
@@ -234,6 +349,9 @@ app.whenReady().then(() => {
   log.info(`Using ffmpeg: ${process.env.FFMPEG_PATH}`);
   log.info(`Using ffprobe: ${process.env.FFPROBE_PATH}`);
 
+  // Start the backend server before creating the window
+  await startBackendServer();
+  
   createWindow();
 
   app.on('activate', () => {

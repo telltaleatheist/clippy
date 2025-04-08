@@ -25,7 +25,8 @@
     "package": "npm run build && electron-builder build --publish never",
     "package:mac": "npm run build && electron-builder build --mac --publish never",
     "package:win": "npm run build && electron-builder build --win --publish never",
-    "package:linux": "npm run build && electron-builder build --linux --publish never"
+    "package:linux": "npm run build && electron-builder build --linux --publish never",
+    "production": "npm run build && cross-env NODE_ENV=production electron ."
   },
   "keywords": [
     "video",
@@ -78,9 +79,12 @@
       },
       {
         "from": "frontend/dist/clippy-frontend/browser",
-        "to": "frontend/dist"
+        "to": "frontend/dist/clippy-frontend/browser"
       }
     ],
+    "extraMetadata": {
+      "main": "dist/main.js"
+    },
     "mac": {
       "category": "public.app-category.utilities",
       "target": [
