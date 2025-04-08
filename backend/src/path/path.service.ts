@@ -80,7 +80,11 @@ export class PathService {
       }
       return true;
     } catch (error) {
-      this.logger.error(`Failed to create download directory: ${error.message}`);
+      if (error instanceof Error) {
+        this.logger.error(`Failed to create download directory: ${error.message}`);
+      } else {
+        this.logger.error(`Failed to create download directory: ${String(error)}`);
+      }
       return false;
     }
   }
