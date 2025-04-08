@@ -5,6 +5,8 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
+import { environment } from './config/environment';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   try {
@@ -14,8 +16,19 @@ async function bootstrap() {
       abortOnError: false
     });
 
-    // Enable CORS
-    app.enableCors();
+    app.useWebSocketAdapter(new IoAdapter(app));
+
+    app.enableCors({
+      origin: [
+        'http://localhost:8080',
+        'http://localhost:4200',
+        'http://localhost:3000'
+      ],
+      methods: ['GET', 'POST'],
+      credentials: true
+    });
+    
+    app.setGlobalPrefix(environment.apiPrefix);
 
     // Global validation pipe
     app.useGlobalPipes(
@@ -60,6 +73,10 @@ async function bootstrap() {
 
       // Fallback route to support client-side routing
       expressApp.use((req, res, next) => {
+        if (req.url.startsWith('/api/') || req.url.startsWith('/socket.io/')) {
+          return next();
+        }
+        
         // Only handle GET requests
         if (req.method !== 'GET') return next();
       
@@ -78,12 +95,11 @@ async function bootstrap() {
       });
     }
 
-    // Start the server
-    const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-    await app.listen(port, '0.0.0.0');
-    
-    console.log(`=== APPLICATION STARTED ===`);
-    console.log(`Server running on port ${port}`);
+    const port = environment.port || process.env.PORT || 3000;
+    await app.listen(port, () => {
+      console.log(`=== APPLICATION STARTED ===`);
+      console.log(`Server running on port ${port}`);
+    });
   } catch (error) {
     console.error('=== BOOTSTRAP ERROR ===');
     console.error('Error during application startup:');

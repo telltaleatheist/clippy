@@ -2,13 +2,15 @@ import { Body, Controller, Get, Param, Post, Delete, Res, Query } from '@nestjs/
 import { Response } from 'express';
 import { DownloaderService } from './downloader.service';
 import { DownloadVideoDto } from '../common/dto/download.dto';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+import { DownloadOptions, DownloadResult, HistoryItem } from '../common/interfaces/download.interface';
+import { Observable } from 'rxjs';
 
 @Controller('downloader')
 export class DownloaderController {
   constructor(private readonly downloaderService: DownloaderService) {}
-
+  
   @Post()
   async downloadVideo(@Body() downloadOptions: DownloadVideoDto) {
     return this.downloaderService.downloadVideo(downloadOptions);
@@ -16,6 +18,7 @@ export class DownloaderController {
 
   @Get('history')
   async getDownloadHistory() {
+    console.log('Accessing download history route');
     return this.downloaderService.getDownloadHistory();
   }
 
@@ -85,6 +88,7 @@ export class DownloaderController {
 
   @Get('check')
   async checkUrl(@Query('url') url: string) {
+    console.log('✅ [DownloaderController] checkUrl() called with:', url);
     if (!url) {
       return { valid: false, message: 'URL is required' };
     }

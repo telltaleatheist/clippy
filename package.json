@@ -18,8 +18,9 @@
     "test:frontend": "cd frontend && npm run test",
     "start:prod": "npm run build && node backend/dist/main.js",
     "electron": "electron .",
-    "build:electron": "tsc",
-    "electron:dev": "npm run build:electron && npm run build:frontend && concurrently --kill-others \"npm run start:backend\" \"wait-on http://localhost:3000 && electron .\"",
+    "build:preload": "tsc preload/preload.ts --outDir preload",
+    "build:electron": "tsc -p tsconfig.json",
+    "electron:dev": "npm run build:electron && npm run build:frontend && npm run build:backend && concurrently --kill-others \"npm run start:backend\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:start": "npm run build:frontend && npm run build:electron && electron ."
   },
   "keywords": [

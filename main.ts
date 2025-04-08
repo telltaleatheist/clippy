@@ -6,6 +6,7 @@ import { downloadVideo, checkAndFixAspectRatio, processOutputFilename } from './
 
 // Add these imports
 import * as http from 'http';
+import * as https from 'https';
 const fs = require('fs');
 
 // Configure logging
@@ -25,15 +26,27 @@ function createWindow(): void {
     minHeight: 500,
     autoHideMenuBar: true,
     webPreferences: {
-      nodeIntegration: false,
+      nodeIntegration: true,
       contextIsolation: true,
-      preload: path.join(__dirname, '../preload/preload.js'),
-      webSecurity: false, // For testing
-      allowRunningInsecureContent: true // For testing
+      webSecurity: false, // Enable web security
+      allowRunningInsecureContent: false, // Disable insecure content
+      preload: path.join(__dirname, 'preload', 'preload.js')
     },
     icon: path.join(__dirname, '../../assets/icon.png')
   });
-
+  
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        contentSecurityPolicy: "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "font-src 'self' https://fonts.gstatic.com; " +
+        "connect-src 'self' http://localhost:3000 ws://localhost:3000;"
+      }
+    });
+  });
   // Add debugging event listeners
   mainWindow.webContents.openDevTools();
   mainWindow.webContents.on('did-start-loading', () => console.log('Started loading'));
@@ -46,10 +59,60 @@ function createWindow(): void {
     console.log(`Console [${level}]: ${message} (${sourceId}:${line})`);
   });
 
-  // Create a simple server to serve Angular files
-  const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
-    let url = req.url === '/' ? '/index.html' : req.url || '/index.html';
-    const filePath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser', url);
+// Create a simple server to serve Angular files
+const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
+  const url = req.url || '/';
+  
+  console.log(`[ELECTRON PROXY] Received request: ${url}`);
+  
+  // Prioritize API and socket.io routes
+  if (url.startsWith('/api/') || url.includes('/socket.io/')) {
+    console.log(`[ELECTRON PROXY] Proxying special route: ${url}`);
+    
+    const proxyOptions = {
+      hostname: 'localhost',
+      port: 3000,
+      path: url,
+      method: req.method,
+      headers: {
+        ...req.headers,
+        'Host': 'localhost:3000'
+      }
+    };
+  
+    const proxyReq = http.request(proxyOptions, (proxyRes) => {
+      // Set CORS headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+      // Forward response
+      res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+  
+    // Pipe request body if exists
+    req.pipe(proxyReq);
+  
+    proxyReq.on('error', (err) => {
+      console.error('[ELECTRON PROXY] Proxy error:', err);
+      res.writeHead(500);
+      res.end('Proxy error');
+    });
+  
+    return;
+  }
+
+  // Serve static files
+  let filePath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser', 
+                           url === '/' ? '/index.html' : url);
+  
+  // Check if file exists and serve it
+  if (fs.existsSync(filePath)) {
+    // Check if the requested path is a directory
+    if (fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(filePath, 'index.html');
+    }
     
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath);
@@ -59,16 +122,29 @@ function createWindow(): void {
       if (ext === '.js') contentType = 'application/javascript';
       if (ext === '.css') contentType = 'text/css';
       if (ext === '.ico') contentType = 'image/x-icon';
+      if (ext === '.png') contentType = 'image/png';
+      if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+      if (ext === '.svg') contentType = 'image/svg+xml';
       
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);
-    } else {
-      console.log('File not found:', filePath);
-      res.writeHead(404);
-      res.end('Not found');
+      return;
     }
-  });
+  }
   
+  // Fallback to serving index.html for client-side routing
+  console.log(`[Fallback] Serving index.html for route: ${url}`);
+  const indexPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html');
+  if (fs.existsSync(indexPath)) {
+    const content = fs.readFileSync(indexPath);
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(content);
+  } else {
+    res.writeHead(404);
+    res.end('Not found');
+  }
+});
+    
   server.listen(8080, 'localhost', () => {
     console.log('Server running at http://localhost:8080/');
     if (mainWindow) {
@@ -101,6 +177,26 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+// Make sure the backend server is running
+function checkBackendServer(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.request({
+      hostname: 'localhost',
+      port: 3000,
+      path: '/api',
+      method: 'GET'
+    }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    
+    req.on('error', () => {
+      resolve(false);
+    });
+    
+    req.end();
+  });
+}
 
 // IPC Handlers
 ipcMain.handle('download-video', async (_, options) => {

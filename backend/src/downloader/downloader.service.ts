@@ -2,7 +2,6 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
-import youtubeDl from 'youtube-dl-exec';
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { 
@@ -11,14 +10,16 @@ import {
   HistoryItem 
 } from '../common/interfaces/download.interface';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service';
+import { join } from 'node:path';
+import { execFile, ExecFileOptions } from 'node:child_process';
 
-@WebSocketGateway({ cors: true })
 @Injectable()
 export class DownloaderService {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(DownloaderService.name);
+  private readonly ytDlpPath = '/Users/telltale/Documents/clippy/bin/yt-dlp';
   private downloadHistory: HistoryItem[] = [];
   private historyFilePath: string;
 
@@ -102,12 +103,22 @@ export class DownloaderService {
       
       // Create a promise that resolves when the download is complete
       const downloadPromise = new Promise<DownloadResult>((resolve, reject) => {
-        const downloadProcess = youtubeDl.exec(
-          options.url,
-          ytDlpOptions,
-          { stdio: ['ignore', 'pipe', 'pipe'] }
-        );
+        const args = Object.entries(ytDlpOptions).flatMap(([key, value]) => {
+          const flag = `--${key.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}`;
+          return typeof value === 'boolean'
+            ? (value ? [flag] : [])
+            : [flag, String(value)];
+        });
+
+        const commandArgs: string[] = ['--verbose', '--output', outputTemplate, options.url];
         
+        // Use a type assertion to allow 'stdio' even though it's not officially part of ExecFileOptions
+        const commandOptions = {
+          stdio: ['ignore', 'pipe', 'pipe']
+        } as ExecFileOptions;
+        
+        const downloadProcess = execFile(this.ytDlpPath, commandArgs, commandOptions);
+
         // Handle stdout data
         if (downloadProcess.stdout) {
           downloadProcess.stdout.on('data', (data: Buffer) => {
@@ -117,11 +128,15 @@ export class DownloaderService {
             const progressMatch = output.match(/(\d+\.\d+)% of/);
             if (progressMatch) {
               progressPercent = parseFloat(progressMatch[1]);
-              this.server.emit('download-progress', { 
-                progress: progressPercent,
-                task: 'Downloading'
-              });
-            }
+              if (this.server) {
+                this.server?.emit('download-progress', { 
+                  progress: progressPercent,
+                  task: 'Downloading'
+                });
+              } else {
+                console.error('Socket is not initialized');
+              }
+          }
             
             // Extract output filename
             if (output.includes('[download] Destination:')) {
@@ -284,7 +299,12 @@ export class DownloaderService {
       this.saveDownloadHistory();
       
       // Notify clients
-      this.server.emit('download-history-updated', this.downloadHistory);
+      if (this.server) {
+        this.server.emit('download-history-updated', this.downloadHistory);
+      } else {
+        console.error('Socket is not initialized');
+      }
+      
     } catch (error) {
       this.logger.error('Error adding to history:', error);
     }
@@ -310,7 +330,11 @@ export class DownloaderService {
     
     if (this.downloadHistory.length < initialLength) {
       this.saveDownloadHistory();
-      this.server.emit('download-history-updated', this.downloadHistory);
+      if (this.server) {
+        this.server.emit('download-history-updated', this.downloadHistory);
+      } else {
+        console.error('Socket is not initialized');
+      }
       return { success: true, message: 'Item removed from history' };
     }
     
@@ -320,41 +344,38 @@ export class DownloaderService {
   clearHistory(): { success: boolean, message: string } {
     this.downloadHistory = [];
     this.saveDownloadHistory();
-    this.server.emit('download-history-updated', this.downloadHistory);
+    if (this.server) {
+      this.server.emit('download-history-updated', this.downloadHistory);
+    } else {
+      console.error('Socket is not initialized');
+    }
+    
     return { success: true, message: 'Download history cleared' };
   }
 
-  async checkUrl(url: string): Promise<{ valid: boolean, message: string, info?: any }> {
-    try {
-      // Use yt-dlp to get info about the URL
-      const result = await youtubeDl(url, {
-        dumpSingleJson: true,
-        noPlaylist: true,
-        skipDownload: true,
-        noWarnings: true,
+  async checkUrl(url: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      execFile(this.ytDlpPath, ['--dump-json', '--simulate', '--no-playlist', url], (error: Error | null, stdout: string, stderr: string) => {
+        if (error) {
+          this.logger.error(`yt-dlp failed!`);
+          this.logger.error(`Command: ${this.ytDlpPath} --dump-json "${url}"`);
+          this.logger.error(`Error message: ${error.message}`);
+          this.logger.error(`stderr: ${stderr}`);
+          this.logger.error(`stdout: ${stdout}`);
+          reject(new Error(`yt-dlp failed: ${stderr || error.message}`));
+          return;
+        }
+      
+        try {
+          const info = JSON.parse(stdout);
+          resolve({ valid: true, info });
+        } catch (parseErr) {
+          this.logger.error('Failed to parse yt-dlp output!');
+          this.logger.error(`stdout: ${stdout}`);
+          this.logger.error(`Parse error: ${parseErr}`);
+          reject(new Error('Invalid yt-dlp response'));
+        }
       });
-      
-      if (result) {
-        return {
-          valid: true,
-          message: 'Valid video URL',
-          info: {
-            title: result.title,
-            duration: result.duration,
-            thumbnail: result.thumbnail,
-            uploader: result.uploader,
-            extractor: result.extractor,
-          },
-        };
-      }
-      
-      return { valid: false, message: 'Could not extract video information' };
-    } catch (error) {
-      this.logger.error('Error checking URL:', error);
-      return { 
-        valid: false, 
-        message: error instanceof Error ? error.message : 'Invalid video URL'
-      };
-    }
+    });
   }
 }

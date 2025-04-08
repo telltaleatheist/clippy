@@ -1,187 +1,134 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ApiService } from '../../services/api.service';
+import { QUALITY_OPTIONS, BROWSER_OPTIONS } from './download-form.constants';
+import { of } from 'rxjs';
+import { CommonModule, DatePipe } from '@angular/common';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSelectModule } from '@angular/material/select';
 import { MatOptionModule } from '@angular/material/core';
-import { FormsModule } from '@angular/forms';
-
-import { ApiService } from '../../services/api.service';
-import { SettingsService } from '../../services/settings.service';
-import { Settings } from '../../models/settings.model';
-import { DownloadOptions, VideoInfo } from '../../models/download.model';
-import { BROWSER_OPTIONS, QUALITY_OPTIONS } from './download-form.constants';
-
-import { debounceTime, distinctUntilChanged, switchMap, catchError, of } from 'rxjs';
-import { MatCardModule } from '@angular/material/card';
+import { MatExpansionModule } from '@angular/material/expansion';
 
 @Component({
   selector: 'app-download-form',
   standalone: true,
-  templateUrl: './download-form.component.html',
-  styleUrls: ['./download-form.component.scss'],
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    FormsModule,
-    MatSnackBarModule,
+    MatCardModule,
     MatFormFieldModule,
     MatInputModule,
-    MatSelectModule,
-    MatCheckboxModule,
-    MatExpansionModule,
     MatIconModule,
     MatButtonModule,
+    MatProgressSpinnerModule,
+    MatCheckboxModule,
+    MatSelectModule,
     MatOptionModule,
-    MatCardModule
-  ]
+    MatExpansionModule
+  ],
+  templateUrl: './download-form.component.html',
+  styleUrls: ['./download-form.component.scss'],
+  providers: [DatePipe]
 })
 export class DownloadFormComponent implements OnInit {
-  private fb = inject(FormBuilder);
-  private apiService = inject(ApiService);
-  private settingsService = inject(SettingsService);
-  private snackBar = inject(MatSnackBar);
-
-  downloadForm: FormGroup;
-  advancedOptionsExpanded = false;
+  downloadForm!: FormGroup;
   isLoading = false;
-  browserOptions = BROWSER_OPTIONS;
-  qualityOptions = QUALITY_OPTIONS;
-  urlInfo: VideoInfo | null = null;
-  isValidUrl = false;
-  isCheckingUrl = false;
+  advancedOptionsExpanded = false;
 
-  constructor() {
-    this.downloadForm = this.createForm();
-  }
+  urlInfo: any = null;
+
+  qualityOptions = QUALITY_OPTIONS;
+  browserOptions = BROWSER_OPTIONS;
+
+  constructor(
+    private fb: FormBuilder,
+    private apiService: ApiService
+  ) {}
 
   ngOnInit(): void {
-    this.settingsService.getSettings().subscribe(settings => {
-      this.updateFormWithSettings(settings);
-    });
-
-    this.downloadForm.get('url')?.valueChanges
-      .pipe(
-        debounceTime(500),
-        distinctUntilChanged(),
-        switchMap(url => {
-          if (!url || url.length < 5) {
-            this.urlInfo = null;
-            this.isValidUrl = false;
-            return of(null);
-          }
-
-          this.isCheckingUrl = true;
-          return this.apiService.checkUrl(url).pipe(
-            catchError(() => of({ valid: false, message: 'Error checking URL' }))
-          );
-        })
-      )
-      .subscribe(result => {
-        this.isCheckingUrl = false;
-
-        if (result) {
-          this.isValidUrl = result.valid;
-          if (result && 'info' in result) {
-            this.urlInfo = result.info;
-          }
-
-          if (!result.valid) {
-            this.downloadForm.get('url')?.setErrors({ invalidUrl: true });
-          }
-        }
-      });
-  }
-
-  createForm(): FormGroup {
-    return this.fb.group({
+    this.downloadForm = this.fb.group({
       url: ['', [Validators.required, Validators.pattern(/^https?:\/\/.+/)]],
-      quality: ['720'],
+      quality: ['720p'],
       convertToMp4: [true],
-      useCookies: [true],
-      browser: ['auto'],
       fixAspectRatio: [true],
+      useCookies: [false],
+      browser: ['auto'],
       outputDir: ['']
     });
   }
 
-  updateFormWithSettings(settings: Settings): void {
-    this.downloadForm.patchValue({
-      quality: settings.quality,
-      convertToMp4: settings.convertToMp4,
-      useCookies: settings.useCookies,
-      browser: settings.browser,
-      fixAspectRatio: settings.fixAspectRatio,
-      outputDir: settings.outputDir
-    });
-  }
-
-  toggleAdvancedOptions(): void {
-    this.advancedOptionsExpanded = !this.advancedOptionsExpanded;
-  }
-
   onSubmit(): void {
     if (this.downloadForm.invalid) return;
+    this.checkUrlAndDownload();
+  }
 
-    const formValue = this.downloadForm.value;
-    const downloadOptions: DownloadOptions = {
-      url: formValue.url,
-      quality: formValue.quality,
-      convertToMp4: formValue.convertToMp4,
-      useCookies: formValue.useCookies,
-      browser: formValue.useCookies ? formValue.browser : null,
-      fixAspectRatio: formValue.fixAspectRatio,
-      outputDir: formValue.outputDir || undefined,
-      fps: 30
-    };
-
+  private checkUrlAndDownload(): void {
+    const urlControl = this.downloadForm.get('url');
+    const rawUrl = urlControl?.value;
+    const url = rawUrl?.replace(/^https:\/\/x\.com/, 'https://twitter.com');
+      
     this.isLoading = true;
-
-    this.apiService.downloadVideo(downloadOptions).subscribe({
+  
+    console.log('Checking URL:', url);
+  
+    this.apiService.checkUrl(url).subscribe({
       next: (result) => {
         this.isLoading = false;
-        if (result.success) {
-          this.snackBar.open('Download started!', 'Dismiss', { duration: 3000 });
-          this.downloadForm.get('url')?.reset();
+  
+        if (!result || !result.valid) {
+          console.warn('URL is invalid');
           this.urlInfo = null;
-        } else {
-          this.snackBar.open(`Download error: ${result.error}`, 'Dismiss', { duration: 5000 });
+          urlControl?.setErrors({ invalidUrl: true });
+          return;
         }
+  
+        this.urlInfo = result.info || null;
+        urlControl?.setErrors(null);
+  
+        console.log('URL is valid, ready to download:', this.urlInfo);
+        this.startDownload(); // Only runs after button click
       },
-      error: (error) => {
+      error: (err) => {
         this.isLoading = false;
-        this.snackBar.open(`Server error: ${error.message || 'Unknown error'}`, 'Dismiss', { duration: 5000 });
+        this.urlInfo = null;
+  
+        console.error('Error during URL check:', err);
+        urlControl?.setErrors({ invalidUrl: true });
       }
     });
-
-    this.settingsService.updateSettings({
-      quality: formValue.quality,
-      convertToMp4: formValue.convertToMp4,
-      useCookies: formValue.useCookies,
-      browser: formValue.browser,
-      fixAspectRatio: formValue.fixAspectRatio,
-      outputDir: formValue.outputDir
+  }
+  
+  startDownload(): void {
+    const settings = this.downloadForm.value;
+    console.log('🚀 Starting download with settings:', settings);
+  
+    this.apiService.downloadVideo(settings).subscribe({
+      next: (res) => {
+        console.log('✅ Download started successfully:', res);
+        // Optionally update UI state here
+      },
+      error: (err) => {
+        console.error('❌ Failed to start download:', JSON.stringify(err, null, 2));
+        // Show error to the user if needed
+      }
     });
   }
 
-  async pasteFromClipboard(): Promise<void> {
-    try {
-      const clipboardText = await navigator.clipboard.readText();
-      if (clipboardText) {
-        this.downloadForm.get('url')?.setValue(clipboardText);
-      }
-    } catch {
-      this.snackBar.open('Failed to read from clipboard', 'Dismiss', { duration: 3000 });
-    }
+  pasteFromClipboard(): void {
+    navigator.clipboard.readText().then(text => {
+      this.downloadForm.get('url')?.setValue(text);
+    });
   }
 
   browseOutputDir(): void {
-    this.snackBar.open('File picking is not available in the web version', 'Dismiss', { duration: 3000 });
+    // TODO: Trigger file browser from Electron preload or IPC
+    console.log('🗂️ Browse for output directory (not yet implemented)');
   }
 }

@@ -38,7 +38,7 @@ import { environment } from '../environments/environment';
 
 // Socket.io configuration
 const socketIoConfig: SocketIoConfig = { 
-  url: environment.apiUrl, 
+  url: environment.apiBaseUrl, 
   options: {
     transports: ['websocket']
   } 

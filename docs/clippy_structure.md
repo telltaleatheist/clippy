@@ -19,6 +19,8 @@ tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*
 │   │   │   │   └── download.dto.ts
 │   │   │   └── interfaces
 │   │   │       └── download.interface.ts
+│   │   ├── config
+│   │   │   └── environment.ts
 │   │   ├── downloader
 │   │   │   ├── downloader.controller.ts
 │   │   │   ├── downloader.module.ts
@@ -42,6 +44,7 @@ tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*
 │   └── yt-dlp
 ├── clippy_structure.md
 ├── docs
+│   ├── clippy_structure.md
 │   ├── development.md
 │   ├── installation.md
 │   ├── license.md
@@ -105,8 +108,9 @@ tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*
 ├── main.ts
 ├── package-lock.json
 ├── package.json
+├── preload
+│   └── preload.js
 ├── tsconfig.json
 └── tsconfig.tsbuildinfo
 ```
-
-26 directories, 80 files
+28 directories, 83 files
