@@ -48,3 +48,31 @@
       justify-content: space-around;
     }
   }
+  
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevents scrollbars */
+    height: 100vh;
+    width: 100vw;
+  }
+  
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+  
+  /* Ensure content containers use flex and don't overflow */
+  .content-container {
+    flex: 1;
+    overflow: auto; /* Allow scrolling within containers if needed */
+    padding: 1rem;
+  }
+  
+  /* Remove any bottom margins on the last elements to prevent scrollbar */
+  .content-container > :last-child {
+    margin-bottom: 0;
+  }

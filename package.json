@@ -42,6 +42,7 @@
     "@types/electron": "^1.4.38",
     "@types/node": "^22.14.0",
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "electron": "^35.1.4",
     "electron-builder": "^24.13.3",
     "typescript": "^5.8.3",
@@ -67,7 +68,9 @@
       {
         "from": "bin",
         "to": "bin",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "backend/dist",
@@ -80,13 +83,20 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility"
     },
     "publish": {
