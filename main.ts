@@ -11,7 +11,6 @@ log.info('Application starting...');
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
 
-// Create main application window
 function createWindow(): void {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -19,6 +18,7 @@ function createWindow(): void {
     height: 700,
     minWidth: 600,
     minHeight: 500,
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -27,9 +27,25 @@ function createWindow(): void {
     icon: path.join(__dirname, '../../assets/icon.png')
   });
 
-  // Load the index.html of the app
-  mainWindow.loadFile(path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html'));
+  // Find where your Angular app is built
+  const fs = require('fs');
+  const angularPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html');
+  const rootPath = path.join(__dirname, '../index.html');
 
+  // Log some debug info
+  console.log('Angular path exists:', fs.existsSync(angularPath));
+  console.log('Root path exists:', fs.existsSync(rootPath));
+
+  // Try to load the Angular app, fall back to the basic HTML if not found
+  if (fs.existsSync(angularPath)) {
+    mainWindow.loadFile(angularPath);
+  } else {
+    console.log('Angular build not found, loading basic HTML');
+    mainWindow.loadFile(rootPath);
+  }
+
+  mainWindow.setMenuBarVisibility(false);
+  
   // Open DevTools in development mode
   if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
