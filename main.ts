@@ -4,6 +4,10 @@ import * as log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
 import { downloadVideo, checkAndFixAspectRatio, processOutputFilename } from './download';
 
+// Add these imports
+import * as http from 'http';
+const fs = require('fs');
+
 // Configure logging
 log.transports.file.level = 'info';
 log.info('Application starting...');
@@ -11,6 +15,7 @@ log.info('Application starting...');
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
 
+// Create main application window
 function createWindow(): void {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -22,34 +27,56 @@ function createWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../preload/preload.js')
+      preload: path.join(__dirname, '../preload/preload.js'),
+      webSecurity: false, // For testing
+      allowRunningInsecureContent: true // For testing
     },
     icon: path.join(__dirname, '../../assets/icon.png')
   });
 
-  // Find where your Angular app is built
-  const fs = require('fs');
-  const angularPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html');
-  const rootPath = path.join(__dirname, '../index.html');
+  // Add debugging event listeners
+  mainWindow.webContents.openDevTools();
+  mainWindow.webContents.on('did-start-loading', () => console.log('Started loading'));
+  mainWindow.webContents.on('did-stop-loading', () => console.log('Stopped loading'));
+  mainWindow.webContents.on('did-finish-load', () => console.log('Finished loading'));
+  mainWindow.webContents.on('did-fail-load', (_, code, desc) => console.log('Failed loading:', code, desc));
+  mainWindow.webContents.on('crashed', () => console.log('Renderer crashed'));
+  mainWindow.webContents.on('unresponsive', () => console.log('Window unresponsive'));
+  mainWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
+    console.log(`Console [${level}]: ${message} (${sourceId}:${line})`);
+  });
 
-  // Log some debug info
-  console.log('Angular path exists:', fs.existsSync(angularPath));
-  console.log('Root path exists:', fs.existsSync(rootPath));
-
-  // Try to load the Angular app, fall back to the basic HTML if not found
-  if (fs.existsSync(angularPath)) {
-    mainWindow.loadFile(angularPath);
-  } else {
-    console.log('Angular build not found, loading basic HTML');
-    mainWindow.loadFile(rootPath);
-  }
+  // Create a simple server to serve Angular files
+  const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
+    let url = req.url === '/' ? '/index.html' : req.url || '/index.html';
+    const filePath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser', url);
+    
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      
+      let contentType = 'text/html';
+      if (ext === '.js') contentType = 'application/javascript';
+      if (ext === '.css') contentType = 'text/css';
+      if (ext === '.ico') contentType = 'image/x-icon';
+      
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(content);
+    } else {
+      console.log('File not found:', filePath);
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+  
+  server.listen(8080, 'localhost', () => {
+    console.log('Server running at http://localhost:8080/');
+    if (mainWindow) {
+      mainWindow.loadURL('http://localhost:8080/');
+    }
+  });
 
   mainWindow.setMenuBarVisibility(false);
-  
-  // Open DevTools in development mode
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
 
   // Handle window closed
   mainWindow.on('closed', () => {
