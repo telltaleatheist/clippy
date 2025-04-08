@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/components/settings/settings.component.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';

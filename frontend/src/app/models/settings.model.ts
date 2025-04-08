@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/models/settings.model.ts
 import { BrowserType, QualityOption } from './download.model';
 
 export interface Settings {

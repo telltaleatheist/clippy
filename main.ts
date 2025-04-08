@@ -1,3 +1,4 @@
+// clippy/main.ts
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as log from 'electron-log';

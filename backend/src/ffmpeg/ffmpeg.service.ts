@@ -1,3 +1,4 @@
+// clippy/backend/src/ffmpeg/ffmpeg.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import * as ffmpeg from 'fluent-ffmpeg';
 import * as ffmpegInstaller from 'node-ffmpeg-installer';

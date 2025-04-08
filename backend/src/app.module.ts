@@ -1,3 +1,4 @@
+// clippy/backend/src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { AppController } from './app.controller';

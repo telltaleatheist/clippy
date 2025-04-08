@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/components/download-progress/download-progress.component.ts
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';

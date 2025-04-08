@@ -1,3 +1,4 @@
+// clippy/backend/src/environment/environment.util.ts
 // backend/src/common/utils/environment.util.ts
 import { Logger } from '@nestjs/common';
 import * as path from 'path';

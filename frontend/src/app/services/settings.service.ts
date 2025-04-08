@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/services/settings.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Settings } from '../models/settings.model';

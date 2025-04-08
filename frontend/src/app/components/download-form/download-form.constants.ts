@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/components/download-form/download-form.constants.ts
 export const BROWSER_OPTIONS = [
   { value: 'auto', label: 'Auto-detect' },
   { value: 'chrome', label: 'Google Chrome' },

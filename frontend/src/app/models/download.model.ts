@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/models/download.model.ts
 export interface DownloadOptions {
   url: string;
   outputDir?: string;

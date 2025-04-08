@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/material.module.ts
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DatePipe } from '@angular/common';

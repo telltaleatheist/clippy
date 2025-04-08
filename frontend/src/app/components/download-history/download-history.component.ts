@@ -1,3 +1,4 @@
+// clippy/frontend/src/app/components/download-history/download-history.component.ts
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
