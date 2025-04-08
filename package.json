@@ -2,6 +2,7 @@
   "name": "clippy",
   "version": "1.0.0",
   "description": "Video downloader application using NestJS and Angular",
+  "main": "dist/main.js",
   "scripts": {
     "install:all": "npm run install:backend && npm run install:frontend",
     "install:backend": "cd backend && npm install",
@@ -15,9 +16,10 @@
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cd backend && npm run test",
     "test:frontend": "cd frontend && npm run test",
-    "start:prod": "npm run build && node backend/dist/main.ts",
+    "start:prod": "npm run build && node backend/dist/main.js",
     "electron": "electron .",
-    "build:electron": "tsc -p electron/tsconfig.json"
+    "build:electron": "tsc",
+    "electron:dev": "npm run build:electron && concurrently --kill-others \"npm run start:backend\" \"wait-on http://localhost:3000 && electron .\""
   },
   "keywords": [
     "video",
@@ -35,7 +37,8 @@
     "@types/node": "^22.14.0",
     "concurrently": "^8.2.2",
     "electron": "^35.1.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wait-on": "^8.0.3"
   },
   "dependencies": {
     "electron-log": "^5.3.3",
