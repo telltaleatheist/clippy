@@ -28,7 +28,7 @@ function createWindow(): void {
   });
 
   // Load the index.html of the app
-  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  mainWindow.loadFile(path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html'));
 
   // Open DevTools in development mode
   if (process.env.NODE_ENV === 'development') {
@@ -101,19 +101,18 @@ ipcMain.handle('download-video', async (_, options) => {
   }
 });
 
-// Handle file selection dialog
 ipcMain.handle('select-directory', async () => {
   if (!mainWindow) return null;
-  
+
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory']
-  });
-  
+  }) as unknown as { canceled: boolean; filePaths: string[] };
+
   if (result.canceled) {
     return null;
-  } else {
-    return result.filePaths[0];
   }
+
+  return result.filePaths[0];
 });
 
 // Open file in native application

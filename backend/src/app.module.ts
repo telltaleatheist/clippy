@@ -35,7 +35,7 @@ function findFrontendDistPath(): string {
     // Serve static files from frontend
     ServeStaticModule.forRoot({
       rootPath: findFrontendDistPath(),
-      exclude: ['/api/(.*)'],
+      exclude: ['/api*'],
       serveRoot: '/'
     }),
     // Import custom modules

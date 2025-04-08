@@ -59,16 +59,21 @@ async function bootstrap() {
       }));
 
       // Fallback route to support client-side routing
-      expressApp.get('*', (req: express.Request, res: express.Response) => {
-        console.log(`[Fallback Route] Requested URL: ${req.url}`);
+      expressApp.use((req, res, next) => {
+        // Only handle GET requests
+        if (req.method !== 'GET') return next();
+      
+        // If the request has a file extension (like .js, .css, etc), skip it
+        if (path.extname(req.url)) return next();
+      
         const indexPath = path.join(frontendDistPath!, 'index.html');
-        
+      
         if (!fs.existsSync(indexPath)) {
-          console.error(`[ERROR] Index file not found at: ${indexPath}`);
+          console.error(`[ERROR] index.html not found at: ${indexPath}`);
           return res.status(500).send('Frontend application not found');
         }
-
-        console.log(`Serving index.html from: ${indexPath}`);
+      
+        console.log(`[Fallback] Serving index.html for route: ${req.url}`);
         res.sendFile(indexPath);
       });
     }
