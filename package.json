@@ -14,7 +14,8 @@
     "build:frontend": "cd frontend && npm run build",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cd backend && npm run test",
-    "test:frontend": "cd frontend && npm run test"
+    "test:frontend": "cd frontend && npm run test",
+    "start:prod": "npm run build && node backend/dist/main.js"
   },
   "keywords": [
     "video",
