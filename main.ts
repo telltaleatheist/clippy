@@ -376,3 +376,15 @@ autoUpdater.on('update-downloaded', () => {
     mainWindow.webContents.send('update-downloaded');
   }
 });
+
+// Directory picker dialog
+ipcMain.handle('open-directory-picker', async () => {
+  if (!mainWindow) return { canceled: true, filePaths: [] };
+  
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select Download Location'
+  });
+  
+  return result;
+});

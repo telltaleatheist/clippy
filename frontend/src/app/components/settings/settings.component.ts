@@ -13,10 +13,14 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatOptionModule } from '@angular/material/core';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { SettingsService } from '../../services/settings.service';
+import { PathService } from '../../services/path.service';
 import { Settings } from '../../models/settings.model';
 import { BROWSER_OPTIONS, QUALITY_OPTIONS } from '../download-form/download-form.constants';
+import { finalize } from 'rxjs';
 
 @Component({
   selector: 'app-settings',
@@ -35,12 +39,15 @@ import { BROWSER_OPTIONS, QUALITY_OPTIONS } from '../download-form/download-form
     MatCheckboxModule,
     MatIconModule,
     MatButtonModule,
-    MatOptionModule
+    MatOptionModule,
+    MatTooltipModule,
+    MatProgressSpinnerModule
   ]
 })
 export class SettingsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private settingsService = inject(SettingsService);
+  private pathService = inject(PathService);
   private snackBar = inject(MatSnackBar);
   private router = inject(Router);
 
@@ -51,14 +58,24 @@ export class SettingsComponent implements OnInit {
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' }
   ];
+  
+  isValidatingPath = false;
+  isElectron = false;
 
   constructor() {
     this.settingsForm = this.createForm();
+    // Check if we're running in Electron
+    this.isElectron = !!(window as any).electron;
   }
 
   ngOnInit(): void {
     this.settingsService.getSettings().subscribe(settings => {
       this.updateForm(settings);
+      
+      // If outputDir is empty, get the default from the backend
+      if (!settings.outputDir) {
+        this.getDefaultPath();
+      }
     });
   }
 
@@ -88,20 +105,91 @@ export class SettingsComponent implements OnInit {
 
   onSubmit(): void {
     if (this.settingsForm.invalid) return;
-
-    this.settingsService.updateSettings(this.settingsForm.value);
-    this.snackBar.open('Settings saved', 'Dismiss', { duration: 3000 });
+    
+    // Validate the path before saving
+    const outputDir = this.settingsForm.get('outputDir')?.value;
+    if (outputDir) {
+      this.validatePath(outputDir, true);
+    } else {
+      // No path specified, fallback to default
+      this.getDefaultPath(true);
+    }
   }
 
   resetToDefaults(): void {
     if (confirm('Are you sure you want to reset all settings to defaults?')) {
       this.settingsService.resetSettings();
+      // Get the default path from the backend
+      this.getDefaultPath();
       this.snackBar.open('Settings reset to defaults', 'Dismiss', { duration: 3000 });
     }
   }
 
   browseOutputDir(): void {
-    this.snackBar.open('File picking is not available in the web version', 'Dismiss', { duration: 3000 });
+    if (this.isElectron) {
+      this.pathService.openDirectoryPicker().subscribe({
+        next: (path) => {
+          if (path) {
+            this.settingsForm.patchValue({ outputDir: path });
+            this.validatePath(path);
+          }
+        },
+        error: (error) => {
+          console.error('Error picking directory:', error);
+          this.snackBar.open('Error selecting directory', 'Dismiss', { duration: 3000 });
+        }
+      });
+    } else {
+      this.snackBar.open('Directory selection is not available in the web version', 'Dismiss', { duration: 3000 });
+    }
+  }
+
+  getDefaultPath(saveAfter = false): void {
+    this.pathService.getDefaultPath().subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.settingsForm.patchValue({ outputDir: response.path });
+          if (saveAfter) {
+            this.saveSettings();
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Error getting default path:', error);
+        this.snackBar.open('Error getting default download path', 'Dismiss', { duration: 3000 });
+      }
+    });
+  }
+
+  validatePath(path: string, saveAfter = false): void {
+    this.isValidatingPath = true;
+    
+    this.pathService.validatePath(path)
+      .pipe(finalize(() => this.isValidatingPath = false))
+      .subscribe({
+        next: (result) => {
+          if (result.success) {
+            if (result.isValid) {
+              if (saveAfter) {
+                this.saveSettings();
+              } else {
+                this.snackBar.open('Directory is valid and writable', 'Dismiss', { duration: 3000 });
+              }
+            } else {
+              this.snackBar.open('Directory is not writable. Please choose another location.', 'Dismiss', { duration: 5000 });
+            }
+          }
+        },
+        error: (error) => {
+          console.error('Error validating path:', error);
+          this.snackBar.open('Error validating directory', 'Dismiss', { duration: 3000 });
+        }
+      });
+  }
+
+  saveSettings(): void {
+    this.settingsService.updateSettings(this.settingsForm.value);
+    this.snackBar.open('Settings saved', 'Dismiss', { duration: 3000 });
   }
 
   goBack(): void {

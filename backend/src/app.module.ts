@@ -8,6 +8,7 @@ import { FfmpegModule } from './ffmpeg/ffmpeg.module';
 import { ConfigModule } from '@nestjs/config';
 import { join } from 'path';
 import * as fs from 'fs';
+import { PathModule } from './path/path.module';
 
 function findFrontendDistPath(): string {
   const possiblePaths = [
@@ -42,6 +43,7 @@ function findFrontendDistPath(): string {
     // Import custom modules
     DownloaderModule,
     FfmpegModule,
+    PathModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,3 +1,4 @@
+<!-- download-form.component.html -->
 <mat-card class="download-card">
   <mat-card-header>
     <mat-card-title>Download Video</mat-card-title>
@@ -99,7 +100,7 @@
           <div class="option-row">
             <mat-form-field appearance="outline" class="output-dir">
               <mat-label>Output Directory</mat-label>
-              <input matInput formControlName="outputDir" readonly>
+              <input matInput formControlName="outputDir" [readonly]="isElectron">
               <button 
                 type="button" 
                 mat-icon-button 
@@ -109,6 +110,7 @@
               >
                 <mat-icon>folder</mat-icon>
               </button>
+              <mat-hint>Leave empty to use default location</mat-hint>
             </mat-form-field>
           </div>
         </div>
@@ -116,12 +118,13 @@
       
       <div class="actions">
         <button
-        mat-raised-button
-        color="primary"
-        type="submit"
-        [disabled]="downloadForm.invalid || isLoading">
-        Download
-      </button>
+          mat-raised-button
+          color="primary"
+          type="submit"
+          [disabled]="downloadForm.invalid || isLoading">
+          <mat-icon>cloud_download</mat-icon>
+          Download
+        </button>
       </div>
     </form>
   </mat-card-content>

@@ -24,6 +24,25 @@
   margin-bottom: 1.5rem;
 }
 
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  
+  @media (max-width: 600px) {
+    flex-direction: column-reverse;
+    
+    button {
+      width: 100%;
+    }
+  }
+}
+
+.path-validation-spinner {
+  margin-right: 10px;
+}
+
 .checkbox-setting {
   margin: 0.5rem 0;
 }

@@ -10,3 +10,9 @@ export interface Settings {
   browser: BrowserType;
   theme: 'light' | 'dark';
 }
+
+export interface ValidationResult {
+  path: string;
+  isValid: boolean;
+  success: boolean;
+}

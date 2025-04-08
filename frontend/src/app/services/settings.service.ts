@@ -1,88 +1,134 @@
-// clippy/frontend/src/app/services/settings.service.ts
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Settings } from '../models/settings.model';
+import { PathService } from './path.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SettingsService {
+  private pathService = inject(PathService);
+  
   private readonly STORAGE_KEY = 'clippy_settings';
-  private settingsSubject: BehaviorSubject<Settings>;
-
-  // Default settings
   private defaultSettings: Settings = {
-    outputDir: '',
     quality: '720',
     convertToMp4: true,
-    useCookies: true,
     fixAspectRatio: true,
+    useCookies: true,
     browser: 'auto',
-    theme: 'light'
+    theme: 'light',
+    outputDir: ''
   };
-
+  
+  private settingsSubject = new BehaviorSubject<Settings>(this.defaultSettings);
+  
   constructor() {
-    // Initialize settings from localStorage or defaults
-    const savedSettings = this.loadSettings();
-    this.settingsSubject = new BehaviorSubject<Settings>({
-      ...this.defaultSettings,
-      ...savedSettings
+    this.loadSettings();
+  }
+  
+  /**
+   * Load settings from local storage
+   */
+  private loadSettings(): void {
+    const storedSettings = localStorage.getItem(this.STORAGE_KEY);
+    
+    if (storedSettings) {
+      try {
+        const parsedSettings = JSON.parse(storedSettings);
+        this.settingsSubject.next({
+          ...this.defaultSettings,
+          ...parsedSettings
+        });
+      } catch (error) {
+        console.error('Error parsing stored settings:', error);
+        this.settingsSubject.next(this.defaultSettings);
+      }
+    } else {
+      // If no settings found, initialize with default settings and get default path
+      this.initializeDefaultPath();
+    }
+  }
+  
+  /**
+   * Get the default download path from the server and save it in settings
+   */
+  private initializeDefaultPath(): void {
+    this.pathService.getDefaultPath().subscribe({
+      next: (response) => {
+        if (response.success) {
+          const settings = {
+            ...this.defaultSettings,
+            outputDir: response.path
+          };
+          this.settingsSubject.next(settings);
+          this.saveSettingsToStorage(settings);
+        }
+      },
+      error: (error) => {
+        console.error('Error getting default path:', error);
+        this.settingsSubject.next(this.defaultSettings);
+      }
     });
   }
-
+  
   /**
-   * Get current settings as Observable
+   * Save settings to local storage
+   */
+  private saveSettingsToStorage(settings: Settings): void {
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
+  }
+  
+  /**
+   * Get current settings as observable
    */
   getSettings(): Observable<Settings> {
     return this.settingsSubject.asObservable();
   }
-
+  
   /**
    * Get current settings value
    */
   getCurrentSettings(): Settings {
     return this.settingsSubject.getValue();
   }
-
+  
   /**
    * Update settings
    */
-  updateSettings(settings: Partial<Settings>): void {
-    const currentSettings = this.settingsSubject.getValue();
-    const newSettings = { ...currentSettings, ...settings };
-    this.settingsSubject.next(newSettings);
-    this.saveSettings(newSettings);
+  updateSettings(settings: Settings): void {
+    const updatedSettings = {
+      ...this.settingsSubject.getValue(),
+      ...settings
+    };
+    
+    this.settingsSubject.next(updatedSettings);
+    this.saveSettingsToStorage(updatedSettings);
   }
-
+  
   /**
    * Reset settings to defaults
    */
   resetSettings(): void {
-    this.settingsSubject.next({ ...this.defaultSettings });
-    this.saveSettings(this.defaultSettings);
-  }
-
-  /**
-   * Load settings from localStorage
-   */
-  private loadSettings(): Partial<Settings> {
-    try {
-      const settings = localStorage.getItem(this.STORAGE_KEY);
-      return settings ? JSON.parse(settings) : {};
-    } catch (error) {
-      console.error('Error loading settings:', error);
-      return {};
-    }
-  }
-
-  /**
-   * Save settings to localStorage
-   */
-  private saveSettings(settings: Settings): void {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-      console.error('Error saving settings:', error);
-    }
+    // When resetting, fetch the default path from the server
+    this.pathService.getDefaultPath().subscribe({
+      next: (response) => {
+        if (response.success) {
+          const resetSettings = {
+            ...this.defaultSettings,
+            outputDir: response.path
+          };
+          this.settingsSubject.next(resetSettings);
+          this.saveSettingsToStorage(resetSettings);
+        } else {
+          this.settingsSubject.next(this.defaultSettings);
+          this.saveSettingsToStorage(this.defaultSettings);
+        }
+      },
+      error: (_) => {
+        // If we can't get the default path, just use empty string
+        this.settingsSubject.next(this.defaultSettings);
+        this.saveSettingsToStorage(this.defaultSettings);
+      }
+    });
   }
 }

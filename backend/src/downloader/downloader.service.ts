@@ -1,3 +1,4 @@
+
 // clippy/backend/src/downloader/downloader.service.ts
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +12,7 @@ import {
   HistoryItem 
 } from '../common/interfaces/download.interface';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service';
+import { PathService } from '../path/path.service';
 import { join } from 'node:path';
 import { execFile, ExecFileOptions } from 'node:child_process';
 import { EnvironmentUtil } from 'src/environment/environment.util';
@@ -29,6 +31,7 @@ export class DownloaderService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly ffmpegService: FfmpegService,
+    private readonly pathService: PathService,
   ) {
     // Use the environment utility to get the binary path
     this.ytDlpPath = this.configService.get('YT_DLP_PATH') || 
@@ -94,10 +97,13 @@ export class DownloaderService implements OnModuleInit {
     try {
       this.logger.log(`Starting download for URL: ${options.url}`);
       
+      // Use PathService to ensure we have a valid download location
+      const downloadFolder = this.pathService.getSafePath(options.outputDir);
+      this.logger.log(`Using download directory: ${downloadFolder}`);
+      
       // Ensure output directory exists
-      const downloadFolder = options.outputDir || path.join(process.cwd(), 'downloads');
-      if (!fs.existsSync(downloadFolder)) {
-        fs.mkdirSync(downloadFolder, { recursive: true });
+      if (!this.pathService.ensurePathExists(downloadFolder)) {
+        throw new Error(`Cannot create or access download directory: ${downloadFolder}`);
       }
 
       // Set date format for output template
@@ -157,6 +163,7 @@ export class DownloaderService implements OnModuleInit {
         
         const downloadProcess = execFile(this.ytDlpPath, ytDlpOptions, commandOptions);
 
+        // Handler functions remain unchanged...
         // Handle stdout data
         if (downloadProcess.stdout) {
           downloadProcess.stdout.on('data', (data: Buffer) => {
@@ -285,7 +292,7 @@ export class DownloaderService implements OnModuleInit {
       };
     }
   }
-
+  
   async processOutputFilename(filePath: string): Promise<string> {
     try {
       if (!fs.existsSync(filePath)) {

@@ -16,6 +16,8 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
 import { MatOptionModule } from '@angular/material/core';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { PathService } from '../../services/path.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-download-form',
@@ -47,10 +49,13 @@ export class DownloadFormComponent implements OnInit {
 
   qualityOptions = QUALITY_OPTIONS;
   browserOptions = BROWSER_OPTIONS;
-
+  isElectron = false;
+  
   constructor(
     private fb: FormBuilder,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private pathService: PathService,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -63,6 +68,8 @@ export class DownloadFormComponent implements OnInit {
       browser: ['auto'],
       outputDir: ['']
     });
+    
+    this.isElectron = !!(window as any).electron;
   }
 
   onSubmit(): void {
@@ -129,7 +136,21 @@ export class DownloadFormComponent implements OnInit {
   }
 
   browseOutputDir(): void {
-    // TODO: Trigger file browser from Electron preload or IPC
-    console.log('🗂️ Browse for output directory (not yet implemented)');
+    if (this.isElectron) {
+      this.pathService.openDirectoryPicker().subscribe({
+        next: (path) => {
+          if (path) {
+            this.downloadForm.patchValue({ outputDir: path });
+          }
+        },
+        error: (error) => {
+          console.error('Error picking directory:', error);
+          this.snackBar.open('Error selecting directory', 'Dismiss', { duration: 3000 });
+        }
+      });
+    } else {
+      console.log('🗂️ Directory selection is not available in the web version');
+      this.snackBar.open('Directory selection is not available in the web version', 'Dismiss', { duration: 3000 });
+    }
   }
 }
