@@ -1,4 +1,4 @@
-.app-container {
+  .app-container {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -24,6 +24,8 @@
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    padding: 1rem;
     gap: 1.5rem;
   }
   
@@ -48,31 +50,31 @@
       justify-content: space-around;
     }
   }
-  
+
   html, body {
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Prevents scrollbars */
     height: 100vh;
     width: 100vw;
+    /* Allow scrolling when content exceeds viewport */
+    overflow: auto;
   }
   
-  .app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    max-height: 100vh;
-    overflow: hidden;
+  /* Style scrollbars for better appearance (optional) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
-  
-  /* Ensure content containers use flex and don't overflow */
-  .content-container {
-    flex: 1;
-    overflow: auto; /* Allow scrolling within containers if needed */
-    padding: 1rem;
+
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
   }
-  
-  /* Remove any bottom margins on the last elements to prevent scrollbar */
-  .content-container > :last-child {
-    margin-bottom: 0;
+
+  ::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #555;
   }

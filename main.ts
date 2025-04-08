@@ -69,8 +69,8 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
-    minWidth: 800,  // Increased minimum width
-    minHeight: 650, // Increased minimum height
+    minWidth: 800,  // Reasonable minimum width
+    minHeight: 600, // Reasonable minimum height
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
