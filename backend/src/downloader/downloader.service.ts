@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -12,23 +12,60 @@ import {
 import { FfmpegService } from '../ffmpeg/ffmpeg.service';
 import { join } from 'node:path';
 import { execFile, ExecFileOptions } from 'node:child_process';
+import { EnvironmentUtil } from 'src/environment/environment.util';
 
+@WebSocketGateway({ cors: true })
 @Injectable()
-export class DownloaderService {
+export class DownloaderService implements OnModuleInit {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(DownloaderService.name);
-  private readonly ytDlpPath = '/Users/telltale/Documents/clippy/bin/yt-dlp';
+  private readonly ytDlpPath: string;
   private downloadHistory: HistoryItem[] = [];
   private historyFilePath: string;
-
+  
   constructor(
     private readonly configService: ConfigService,
     private readonly ffmpegService: FfmpegService,
   ) {
+    // Use the environment utility to get the binary path
+    this.ytDlpPath = this.configService.get('YT_DLP_PATH') || 
+                     EnvironmentUtil.getBinaryPath('yt-dlp');
+    
+    this.logger.log(`yt-dlp path set to: ${this.ytDlpPath}`);
+    
+    // Check if path exists
+    if (!fs.existsSync(this.ytDlpPath)) {
+      this.logger.warn(`WARNING: yt-dlp not found at ${this.ytDlpPath}`);
+      // For development, set as absolute path fallback
+      if (EnvironmentUtil.isDevelopment()) {
+        this.ytDlpPath = '/Users/telltale/Documents/clippy/bin/yt-dlp';
+        this.logger.log(`Development fallback: yt-dlp path set to: ${this.ytDlpPath}`);
+      }
+    }
+    
     this.historyFilePath = path.join(process.cwd(), 'downloads', 'history.json');
     this.loadDownloadHistory();
+  }
+
+  onModuleInit() {
+    if (!this.server) {
+      this.logger.warn('WebSocket server not initialized during module initialization');
+    } else {
+      this.logger.log('WebSocket server initialized successfully');
+    }
+  }
+
+  /**
+   * Helper method to safely emit WebSocket events
+   */
+  private emitEvent(event: string, data: any): void {
+    if (this.server) {
+      this.server.emit(event, data);
+    } else {
+      this.logger.warn(`Cannot emit ${event} - WebSocket server not initialized`);
+    }
   }
 
   private loadDownloadHistory(): void {
@@ -67,57 +104,57 @@ export class DownloaderService {
       const outputTemplate = path.join(downloadFolder, `${dateFormat}%(title)s.%(ext)s`);
 
       // Build yt-dlp options
-      const ytDlpOptions: Record<string, any> = {
-        output: outputTemplate,
-        verbose: true,
-        noCheckCertificates: true,
-        noPlaylist: true,
-        forceOverwrites: true
-      };
+      const ytDlpOptions: string[] = ['--verbose', '--output', outputTemplate];
+      
+      // Add no-check-certificates option
+      ytDlpOptions.push('--no-check-certificates');
+      
+      // Add no-playlist option
+      ytDlpOptions.push('--no-playlist');
+      
+      // Add force-overwrites option
+      ytDlpOptions.push('--force-overwrites');
 
       // Add format option based on quality
       if (options.convertToMp4) {
-        ytDlpOptions.mergeOutputFormat = 'mp4';
+        ytDlpOptions.push('--merge-output-format', 'mp4');
       }
 
       // Add quality setting based on URL type
       if (options.url.includes('youtube.com') || options.url.includes('youtu.be')) {
-        ytDlpOptions.format = `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`;
+        ytDlpOptions.push('--format', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`);
       } else {
-        ytDlpOptions.format = `best[height<=${options.quality}]/best`;
+        ytDlpOptions.push('--format', `best[height<=${options.quality}]/best`);
       }
 
       // Add browser cookies if requested
       if (options.useCookies && options.browser) {
         if (options.browser !== 'auto') {
-          ytDlpOptions.cookiesFromBrowser = options.browser;
+          ytDlpOptions.push('--cookies-from-browser', options.browser);
         } else {
           // Auto-detect browser (handle this on frontend instead)
-          ytDlpOptions.cookiesFromBrowser = 'chrome';
+          ytDlpOptions.push('--cookies-from-browser', 'chrome');
         }
       }
+      
+      // Add the URL as the final argument
+      ytDlpOptions.push(options.url);
       
       // Start download process
       let outputFile: string | null = null;
       let progressPercent = 0;
       
+      // Notify clients that download has started
+      this.emitEvent('download-started', { url: options.url });
+      
       // Create a promise that resolves when the download is complete
       const downloadPromise = new Promise<DownloadResult>((resolve, reject) => {
-        const args = Object.entries(ytDlpOptions).flatMap(([key, value]) => {
-          const flag = `--${key.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}`;
-          return typeof value === 'boolean'
-            ? (value ? [flag] : [])
-            : [flag, String(value)];
-        });
-
-        const commandArgs: string[] = ['--verbose', '--output', outputTemplate, options.url];
-        
         // Use a type assertion to allow 'stdio' even though it's not officially part of ExecFileOptions
         const commandOptions = {
           stdio: ['ignore', 'pipe', 'pipe']
         } as ExecFileOptions;
         
-        const downloadProcess = execFile(this.ytDlpPath, commandArgs, commandOptions);
+        const downloadProcess = execFile(this.ytDlpPath, ytDlpOptions, commandOptions);
 
         // Handle stdout data
         if (downloadProcess.stdout) {
@@ -128,15 +165,11 @@ export class DownloaderService {
             const progressMatch = output.match(/(\d+\.\d+)% of/);
             if (progressMatch) {
               progressPercent = parseFloat(progressMatch[1]);
-              if (this.server) {
-                this.server?.emit('download-progress', { 
-                  progress: progressPercent,
-                  task: 'Downloading'
-                });
-              } else {
-                console.error('Socket is not initialized');
-              }
-          }
+              this.emitEvent('download-progress', { 
+                progress: progressPercent,
+                task: 'Downloading'
+              });
+            }
             
             // Extract output filename
             if (output.includes('[download] Destination:')) {
@@ -156,10 +189,19 @@ export class DownloaderService {
         // Handle stderr data
         if (downloadProcess.stderr) {
           downloadProcess.stderr.on('data', (data: Buffer) => {
-            this.logger.error(`yt-dlp error: ${data.toString()}`);
+            const output = data.toString();
+            
+            // Check if this is a debug message or a real error
+            if (output.includes('[debug]')) {
+              // It's a debug message, log as debug or info
+              this.logger.debug(`yt-dlp debug: ${output}`);
+            } else {
+              // It's a real error
+              this.logger.error(`yt-dlp error: ${output}`);
+            }
           });
         }
-        
+                
         // Handle process completion
         downloadProcess.on('close', async (code: number) => {
           if (code === 0 && outputFile && fs.existsSync(outputFile)) {
@@ -170,6 +212,7 @@ export class DownloaderService {
             
             // Fix aspect ratio if requested
             if (options.fixAspectRatio) {
+              this.emitEvent('processing-progress', { task: 'Fixing aspect ratio' });
               const fixedFile = await this.ffmpegService.fixAspectRatio(outputFile);
               if (fixedFile) {
                 outputFile = fixedFile;
@@ -179,16 +222,30 @@ export class DownloaderService {
             // Add to download history
             this.addToHistory(outputFile, options.url);
             
+            // Notify clients that download has completed
+            this.emitEvent('download-completed', { 
+              outputFile, 
+              url: options.url 
+            });
+            
             // Resolve promise
             resolve({
               success: true,
               outputFile: outputFile
             });
           } else {
-            this.logger.error(`Download failed with code ${code}`);
+            const errorMsg = `Download failed with code ${code}`;
+            this.logger.error(errorMsg);
+            
+            // Notify clients that download has failed
+            this.emitEvent('download-failed', { 
+              error: errorMsg, 
+              url: options.url 
+            });
+            
             resolve({
               success: false,
-              error: `Download failed with code ${code}`
+              error: errorMsg
             });
           }
         });
@@ -196,6 +253,13 @@ export class DownloaderService {
         // Handle process error
         downloadProcess.on('error', (err: Error) => {
           this.logger.error(`Download process error: ${err.message}`);
+          
+          // Notify clients that download has failed
+          this.emitEvent('download-failed', { 
+            error: err.message, 
+            url: options.url 
+          });
+          
           reject({
             success: false,
             error: err.message
@@ -207,6 +271,13 @@ export class DownloaderService {
       return downloadPromise;
     } catch (error) {
       this.logger.error('Error in downloadVideo:', error);
+      
+      // Notify clients that download has failed
+      this.emitEvent('download-failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        url: options.url 
+      });
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -299,12 +370,7 @@ export class DownloaderService {
       this.saveDownloadHistory();
       
       // Notify clients
-      if (this.server) {
-        this.server.emit('download-history-updated', this.downloadHistory);
-      } else {
-        console.error('Socket is not initialized');
-      }
-      
+      this.emitEvent('download-history-updated', this.downloadHistory);
     } catch (error) {
       this.logger.error('Error adding to history:', error);
     }
@@ -330,11 +396,7 @@ export class DownloaderService {
     
     if (this.downloadHistory.length < initialLength) {
       this.saveDownloadHistory();
-      if (this.server) {
-        this.server.emit('download-history-updated', this.downloadHistory);
-      } else {
-        console.error('Socket is not initialized');
-      }
+      this.emitEvent('download-history-updated', this.downloadHistory);
       return { success: true, message: 'Item removed from history' };
     }
     
@@ -344,11 +406,7 @@ export class DownloaderService {
   clearHistory(): { success: boolean, message: string } {
     this.downloadHistory = [];
     this.saveDownloadHistory();
-    if (this.server) {
-      this.server.emit('download-history-updated', this.downloadHistory);
-    } else {
-      console.error('Socket is not initialized');
-    }
+    this.emitEvent('download-history-updated', this.downloadHistory);
     
     return { success: true, message: 'Download history cleared' };
   }

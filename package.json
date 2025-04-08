@@ -21,7 +21,11 @@
     "build:preload": "tsc preload/preload.ts --outDir preload",
     "build:electron": "tsc -p tsconfig.json",
     "electron:dev": "npm run build:electron && npm run build:frontend && npm run build:backend && concurrently --kill-others \"npm run start:backend\" \"wait-on http://localhost:3000 && electron .\"",
-    "electron:start": "npm run build:frontend && npm run build:electron && electron ."
+    "electron:start": "npm run build:frontend && npm run build:electron && electron .",
+    "package": "npm run build && electron-builder build --publish never",
+    "package:mac": "npm run build && electron-builder build --mac --publish never",
+    "package:win": "npm run build && electron-builder build --win --publish never",
+    "package:linux": "npm run build && electron-builder build --linux --publish never"
   },
   "keywords": [
     "video",
@@ -39,6 +43,7 @@
     "@types/node": "^22.14.0",
     "concurrently": "^8.2.2",
     "electron": "^35.1.4",
+    "electron-builder": "^24.13.3",
     "typescript": "^5.8.3",
     "wait-on": "^8.0.3"
   },
@@ -46,5 +51,47 @@
     "electron-log": "^5.3.3",
     "electron-updater": "^6.6.2",
     "ngx-socket-io": "^4.3.1"
+  },
+  "build": {
+    "appId": "com.yourcompany.clippy",
+    "productName": "Clippy",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "preload/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "backend/dist",
+        "to": "backend/dist"
+      },
+      {
+        "from": "frontend/dist/clippy-frontend/browser",
+        "to": "frontend/dist"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    }
   }
 }

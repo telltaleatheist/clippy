@@ -25,6 +25,8 @@ tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*
 │   │   │   ├── downloader.controller.ts
 │   │   │   ├── downloader.module.ts
 │   │   │   └── downloader.service.ts
+│   │   ├── environment
+│   │   │   └── environment.util.ts
 │   │   ├── ffmpeg
 │   │   │   ├── ffmpeg.controller.ts
 │   │   │   ├── ffmpeg.module.ts
@@ -56,6 +58,7 @@ tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*
 │   ├── package-lock 2.json
 │   ├── package-lock.json
 │   ├── package.json
+│   ├── proxy.conf.json
 │   ├── public
 │   │   └── favicon.ico
 │   ├── src

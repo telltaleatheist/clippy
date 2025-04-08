@@ -16,8 +16,51 @@ log.info('Application starting...');
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * Setup binary files by ensuring they have executable permissions on macOS/Linux
+ */
+function setupBinaries(): void {
+  if (process.platform === 'win32') {
+    // No need to set permissions on Windows
+    return;
+  }
+
+  // Determine the location of binaries based on environment
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const binPath = isDevelopment 
+    ? path.join(process.cwd(), 'bin')  // Development: root/bin
+    : path.join(process.resourcesPath || app.getAppPath(), 'bin');  // Production: resources/bin
+    
+  log.info(`Setting up binaries at: ${binPath}`);
+  
+  if (fs.existsSync(binPath)) {
+    // List of binaries to make executable
+    const binaries = ['yt-dlp', 'ffmpeg', 'ffprobe'];
+    
+    binaries.forEach(binary => {
+      const binaryPath = path.join(binPath, binary);
+      
+      if (fs.existsSync(binaryPath)) {
+        log.info(`Setting executable permissions for: ${binaryPath}`);
+        try {
+          fs.chmodSync(binaryPath, 0o755);
+        } catch (error) {
+          log.error(`Failed to set permissions for ${binaryPath}:`, error);
+        }
+      } else {
+        log.warn(`Binary not found: ${binaryPath}`);
+      }
+    });
+  } else {
+    log.warn(`Bin directory not found: ${binPath}`);
+  }
+}
+
 // Create main application window
 function createWindow(): void {
+  // Setup binary permissions
+  setupBinaries();
+
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 900,
@@ -59,92 +102,92 @@ function createWindow(): void {
     console.log(`Console [${level}]: ${message} (${sourceId}:${line})`);
   });
 
-// Create a simple server to serve Angular files
-const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
-  const url = req.url || '/';
-  
-  console.log(`[ELECTRON PROXY] Received request: ${url}`);
-  
-  // Prioritize API and socket.io routes
-  if (url.startsWith('/api/') || url.includes('/socket.io/')) {
-    console.log(`[ELECTRON PROXY] Proxying special route: ${url}`);
+  // Create a simple server to serve Angular files
+  const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
+    const url = req.url || '/';
     
-    const proxyOptions = {
-      hostname: 'localhost',
-      port: 3000,
-      path: url,
-      method: req.method,
-      headers: {
-        ...req.headers,
-        'Host': 'localhost:3000'
-      }
-    };
-  
-    const proxyReq = http.request(proxyOptions, (proxyRes) => {
-      // Set CORS headers
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-      // Forward response
-      res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
-      proxyRes.pipe(res);
-    });
-  
-    // Pipe request body if exists
-    req.pipe(proxyReq);
-  
-    proxyReq.on('error', (err) => {
-      console.error('[ELECTRON PROXY] Proxy error:', err);
-      res.writeHead(500);
-      res.end('Proxy error');
-    });
-  
-    return;
-  }
-
-  // Serve static files
-  let filePath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser', 
-                           url === '/' ? '/index.html' : url);
-  
-  // Check if file exists and serve it
-  if (fs.existsSync(filePath)) {
-    // Check if the requested path is a directory
-    if (fs.statSync(filePath).isDirectory()) {
-      filePath = path.join(filePath, 'index.html');
-    }
+    console.log(`[ELECTRON PROXY] Received request: ${url}`);
     
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath);
-      const ext = path.extname(filePath).toLowerCase();
+    // Prioritize API and socket.io routes
+    if (url.startsWith('/api/') || url.includes('/socket.io/')) {
+      console.log(`[ELECTRON PROXY] Proxying special route: ${url}`);
       
-      let contentType = 'text/html';
-      if (ext === '.js') contentType = 'application/javascript';
-      if (ext === '.css') contentType = 'text/css';
-      if (ext === '.ico') contentType = 'image/x-icon';
-      if (ext === '.png') contentType = 'image/png';
-      if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
-      if (ext === '.svg') contentType = 'image/svg+xml';
-      
-      res.writeHead(200, { 'Content-Type': contentType });
-      res.end(content);
+      const proxyOptions = {
+        hostname: 'localhost',
+        port: 3000,
+        path: url,
+        method: req.method,
+        headers: {
+          ...req.headers,
+          'Host': 'localhost:3000'
+        }
+      };
+    
+      const proxyReq = http.request(proxyOptions, (proxyRes) => {
+        // Set CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+        // Forward response
+        res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+        proxyRes.pipe(res);
+      });
+    
+      // Pipe request body if exists
+      req.pipe(proxyReq);
+    
+      proxyReq.on('error', (err) => {
+        console.error('[ELECTRON PROXY] Proxy error:', err);
+        res.writeHead(500);
+        res.end('Proxy error');
+      });
+    
       return;
     }
-  }
-  
-  // Fallback to serving index.html for client-side routing
-  console.log(`[Fallback] Serving index.html for route: ${url}`);
-  const indexPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html');
-  if (fs.existsSync(indexPath)) {
-    const content = fs.readFileSync(indexPath);
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(content);
-  } else {
-    res.writeHead(404);
-    res.end('Not found');
-  }
-});
+
+    // Serve static files
+    let filePath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser', 
+                           url === '/' ? '/index.html' : url);
     
+    // Check if file exists and serve it
+    if (fs.existsSync(filePath)) {
+      // Check if the requested path is a directory
+      if (fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(filePath, 'index.html');
+      }
+      
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        
+        let contentType = 'text/html';
+        if (ext === '.js') contentType = 'application/javascript';
+        if (ext === '.css') contentType = 'text/css';
+        if (ext === '.ico') contentType = 'image/x-icon';
+        if (ext === '.png') contentType = 'image/png';
+        if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+        if (ext === '.svg') contentType = 'image/svg+xml';
+        
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(content);
+        return;
+      }
+    }
+    
+    // Fallback to serving index.html for client-side routing
+    console.log(`[Fallback] Serving index.html for route: ${url}`);
+    const indexPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html');
+    if (fs.existsSync(indexPath)) {
+      const content = fs.readFileSync(indexPath);
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(content);
+    } else {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+      
   server.listen(8080, 'localhost', () => {
     console.log('Server running at http://localhost:8080/');
     if (mainWindow) {
@@ -165,6 +208,16 @@ const server = http.createServer((req: http.IncomingMessage, res: http.ServerRes
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
+  // Add environment variables for binary paths that NestJS can access
+  process.env.YT_DLP_PATH = getBinaryPath('yt-dlp');
+  process.env.FFMPEG_PATH = getBinaryPath('ffmpeg');
+  process.env.FFPROBE_PATH = getBinaryPath('ffprobe');
+  
+  // Log the paths we're using
+  log.info(`Using yt-dlp: ${process.env.YT_DLP_PATH}`);
+  log.info(`Using ffmpeg: ${process.env.FFMPEG_PATH}`);
+  log.info(`Using ffprobe: ${process.env.FFPROBE_PATH}`);
+
   createWindow();
 
   app.on('activate', () => {
@@ -172,6 +225,36 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+/**
+ * Gets the appropriate path for a binary based on environment and platform
+ */
+function getBinaryPath(binaryName: string): string {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const executable = process.platform === 'win32' ? `${binaryName}.exe` : binaryName;
+  
+  let binPath: string;
+  
+  if (isDevelopment) {
+    // Development environment - check project root
+    binPath = path.join(process.cwd(), 'bin', executable);
+    
+    // Hardcoded fallback for development
+    if (!fs.existsSync(binPath)) {
+      binPath = path.join('/Users/telltale/Documents/clippy/bin', executable);
+    }
+  } else {
+    // Production environment - check in resources
+    binPath = path.join(process.resourcesPath || app.getAppPath(), 'bin', executable);
+  }
+  
+  // Verify the binary exists
+  if (!fs.existsSync(binPath)) {
+    log.warn(`Binary not found at ${binPath}`);
+  }
+  
+  return binPath;
+}
 
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
@@ -238,6 +321,17 @@ ipcMain.handle('download-video', async (_, options) => {
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
+});
+
+// Expose the binary paths in the preload API so they can be used in the renderer process
+ipcMain.handle('get-binary-paths', () => {
+  return {
+    ytDlpPath: process.env.YT_DLP_PATH,
+    ffmpegPath: process.env.FFMPEG_PATH,
+    ffprobePath: process.env.FFPROBE_PATH,
+    resourcesPath: process.resourcesPath || app.getAppPath(),
+    isDevelopment: process.env.NODE_ENV !== 'production'
+  };
 });
 
 ipcMain.handle('select-directory', async () => {
