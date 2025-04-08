@@ -1,3 +1,6 @@
+tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*angular-devkit' > clippy_structure.md
+
+```
 /Users/telltale/Documents/clippy
 ├── backend
 │   ├── README.md
@@ -104,5 +107,6 @@
 ├── package.json
 ├── tsconfig.json
 └── tsconfig.tsbuildinfo
+```
 
 26 directories, 80 files
