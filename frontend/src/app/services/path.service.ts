@@ -33,9 +33,9 @@ export class PathService {
    */
   openDirectoryPicker(): Observable<string | null> {
     // Check if we're in Electron environment
-    if ((window as any).electron) {
+    if ((window as any).electron && typeof (window as any).electron.selectDirectory === 'function') {
       return new Observable<string | null>(observer => {
-        (window as any).electron.openDirectoryPicker()
+        (window as any).electron.selectDirectory()
           .then((result: { canceled: boolean, filePaths: string[] }) => {
             if (result.canceled || !result.filePaths.length) {
               observer.next(null);
@@ -45,14 +45,16 @@ export class PathService {
             observer.complete();
           })
           .catch((error: any) => {
+            console.error('Error in directory picker:', error);
             observer.error(error);
             observer.complete();
           });
       });
     }
     
-    // If not in Electron, return null
+    // If not in Electron or the function doesn't exist, return null
     return new Observable<string | null>(observer => {
+      console.log('Directory picker not available in this environment');
       observer.next(null);
       observer.complete();
     });
