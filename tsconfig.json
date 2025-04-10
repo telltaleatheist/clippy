@@ -8,8 +8,24 @@
     "strict": true,
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "types": ["node", "electron"], // important
-    "skipLibCheck": true           // avoids checking all type mismatches
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "sourceMap": true,
+    "declaration": false,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"], // Remove "electron" from here
+    "skipLibCheck": true  // This helps skip type checking of node_modules
   },
-  "include": ["main.ts", "preload/**/*.ts", "renderer/**/*.ts"]
+  "include": [
+    "main.ts",
+    "download.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "backend/**/*",
+    "frontend/**/*",
+    "preload/**/*", 
+    "dist",
+    "**/*.spec.ts"
+  ]
 }

@@ -11,6 +11,14 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   try {
+    // Log startup with clear separation for debugging
+    console.log('====================================');
+    console.log('BACKEND SERVICE STARTING');
+    console.log('Process ID:', process.pid);
+    console.log('Environment:', process.env.NODE_ENV || 'development');
+    console.log('Current directory:', process.cwd());
+    console.log('====================================');
+
     // Create the NestJS app
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       logger: ['error', 'warn', 'log', 'debug', 'verbose'],
@@ -43,28 +51,38 @@ async function bootstrap() {
     // Get the express adapter
     const expressApp = app.getHttpAdapter().getInstance();
 
-    // Manually serve static files
-    // Use multiple potential paths to find the frontend dist
-    const possiblePaths = [
-      path.join(process.cwd(), 'frontend', 'dist', 'clippy-frontend', 'browser'),
-      path.join(process.cwd(), '..', 'frontend', 'dist', 'clippy-frontend', 'browser'),
-      path.join(__dirname, '..', 'frontend', 'dist', 'clippy-frontend', 'browser')
-    ];
-
+    const frontendPathFromEnv = process.env.FRONTEND_PATH;
     let frontendDistPath: string | null = null;
-    for (const potentialPath of possiblePaths) {
-      console.log(`Checking frontend path: ${potentialPath}`);
-      if (fs.existsSync(potentialPath)) {
-        frontendDistPath = potentialPath;
-        break;
+    
+    console.log('Environment variables:');
+    console.log('FRONTEND_PATH:', process.env.FRONTEND_PATH);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('====================================');
+
+    if (frontendPathFromEnv && fs.existsSync(frontendPathFromEnv)) {
+      console.log(`Using frontend path from environment: ${frontendPathFromEnv}`);
+      frontendDistPath = frontendPathFromEnv;
+    } else {
+      // Fall back to checking multiple paths
+      const possiblePaths = [
+        path.join(process.cwd(), 'frontend', 'dist', 'clippy-frontend', 'browser'),
+        path.join(process.cwd(), '..', 'frontend', 'dist', 'clippy-frontend', 'browser'),
+      ];
+    
+      for (const potentialPath of possiblePaths) {
+        console.log(`Checking frontend path: ${potentialPath} (exists: ${fs.existsSync(potentialPath)})`);
+        if (fs.existsSync(potentialPath)) {
+          frontendDistPath = potentialPath;
+          break;
+        }
       }
     }
-
+    
     if (!frontendDistPath) {
-      console.error('ERROR: Could not find frontend dist directory');
-      console.error('Searched paths:', possiblePaths);
+      console.error('❌ Could not find frontend dist directory. Exiting.');
+      process.exit(1);
     } else {
-      console.log(`Frontend dist path: ${frontendDistPath}`);
+      console.log(`✅ Frontend dist path: ${frontendDistPath}`);
 
       // Serve static files
       expressApp.use(express.static(frontendDistPath, {
@@ -100,6 +118,7 @@ async function bootstrap() {
     await app.listen(port, () => {
       console.log(`=== APPLICATION STARTED ===`);
       console.log(`Server running on port ${port}`);
+      console.log(`API endpoint: http://localhost:${port}/${environment.apiPrefix}`);
     });
   } catch (error) {
     console.error('=== BOOTSTRAP ERROR ===');

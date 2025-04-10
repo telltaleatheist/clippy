@@ -1,65 +1,80 @@
-// clippy/backend/src/environment/environment.util.ts
-// backend/src/common/utils/environment.util.ts
-import { Logger } from '@nestjs/common';
+// src/environment/environment.util.ts
 import * as path from 'path';
 import * as fs from 'fs';
 
 export class EnvironmentUtil {
-  private static readonly logger = new Logger('EnvironmentUtil');
-
   /**
-   * Determines if the application is running in development mode
+   * Checks if the application is running in development mode
    */
   static isDevelopment(): boolean {
-    return process.env.NODE_ENV !== 'production';
+    return process.env.NODE_ENV === 'development';
   }
 
   /**
-   * Gets the path to application resources based on environment
+   * Checks if the application is running in production mode
    */
-  static getResourcesPath(): string {
-    // Check if we're in Electron context with the window.electron API
-    if (typeof window !== 'undefined' && (window as any).electron?.environment?.resourcesPath) {
-      return (window as any).electron.environment.resourcesPath;
-    }
-    
-    if ((process as any).resourcesPath) {
-        return (process as any).resourcesPath;
-      }
-    
-    // Fallback for development
-    return path.join(process.cwd(), '..');
+  static isProduction(): boolean {
+    return process.env.NODE_ENV === 'production' || process.env.NODE_ENV === undefined;
   }
 
   /**
-   * Gets the absolute path to a binary based on environment
+   * Returns the path to a binary based on the current environment
+   * This enhanced version checks multiple locations to find the binary
    */
   static getBinaryPath(binaryName: string): string {
-    const executable = process.platform === 'win32' ? `${binaryName}.exe` : binaryName;
-    let binaryPath: string;
+    // Try environment variables first
+    const envVarName = `${binaryName.toUpperCase().replace('-', '_')}_PATH`;
+    if (process.env[envVarName]) {
+      return process.env[envVarName];
+    }
 
-    // Try to get from Electron context first
-    if (typeof window !== 'undefined' && (window as any).electron?.environment?.getBinaryPath) {
-      binaryPath = (window as any).electron.environment.getBinaryPath(binaryName);
-      this.logger.log(`Using binary path from Electron: ${binaryPath}`);
-      return binaryPath;
-    }
-    
-    // Otherwise determine based on environment
-    if (this.isDevelopment()) {
-      // Development - check in project root bin
-      binaryPath = path.join(process.cwd(), '..', 'bin', executable);
-      
-      // Fallback to just bin in current directory
-      if (!fs.existsSync(binaryPath)) {
-        binaryPath = path.join(process.cwd(), 'bin', executable);
+    // For Electron applications
+    const isElectron = !!process.versions && !!process.versions.electron;
+    if (isElectron) {
+      // Use the ElectronProcess type to access resourcesPath
+      interface ElectronProcess extends NodeJS.Process {
+        resourcesPath?: string;
       }
-    } else {
-      // Production - check in resources/bin
-      binaryPath = path.join(this.getResourcesPath(), 'bin', executable);
+      const electronProcess = process as ElectronProcess;
+      return path.join(
+        electronProcess.resourcesPath || '.',
+        'bin',
+        binaryName
+      );
     }
-    
-    this.logger.log(`Resolved binary path for ${binaryName}: ${binaryPath}`);
-    return binaryPath;
+
+    // Try multiple locations in order of preference
+    const potentialPaths = [
+      // 1. Project bin directory (relative to cwd)
+      path.join(__dirname, '../../../bin', binaryName),
+      
+      // 2. Specific location at ~/Documents/clippy/bin/
+      path.join(process.env.HOME || process.env.USERPROFILE || __dirname, '../../../bin', binaryName),
+      
+      // 3. Backend bin directory
+      path.join(__dirname, '../../../bin', binaryName),
+      
+      // 4. Development path (relative to this file)
+      path.join(__dirname, '../../../bin', binaryName)
+    ];
+
+    // Add Windows executable extension if on Windows
+    if (process.platform === 'win32') {
+      potentialPaths.forEach((p, i) => {
+        if (!p.endsWith('.exe')) {
+          potentialPaths[i] = `${p}.exe`;
+        }
+      });
+    }
+
+    // Check each path and return the first one that exists
+    for (const potentialPath of potentialPaths) {
+      if (fs.existsSync(potentialPath)) {
+        return potentialPath;
+      }
+    }
+
+    // If nothing found, return a default path for consistent error handling
+    return path.join(__dirname, '../../../bin', binaryName);
   }
 }

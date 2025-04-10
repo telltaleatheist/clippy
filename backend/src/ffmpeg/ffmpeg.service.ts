@@ -17,9 +17,78 @@ export class FfmpegService {
   private readonly logger = new Logger(FfmpegService.name);
 
   constructor() {
+    // First try to set path from node-ffmpeg-installer
+    let ffmpegPath = ffmpegInstaller.path;
+    
+    // If that file doesn't exist, check alternate locations
+    if (!fs.existsSync(ffmpegPath)) {
+      this.logger.warn(`FFmpeg not found at installer path: ${ffmpegPath}`);
+      
+      // Try user's Documents/clippy/bin directory
+      const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+      const userBinPath = path.join(homeDir, 'Documents', 'clippy', 'bin', 'ffmpeg');
+      
+      if (fs.existsSync(userBinPath)) {
+        ffmpegPath = userBinPath;
+        this.logger.log(`Using FFmpeg from user bin directory: ${ffmpegPath}`);
+      } else {
+        // Try project root bin directory
+        const projectBinPath = path.join(__dirname, '../../../bin');
+        
+        if (fs.existsSync(projectBinPath)) {
+          ffmpegPath = projectBinPath;
+          this.logger.log(`Using FFmpeg from project bin directory: ${ffmpegPath}`);
+        } else {
+          // Try backend/bin directory
+          const backendBinPath = path.join(__dirname, '../../../bin/ffmpeg');
+          
+          if (fs.existsSync(backendBinPath)) {
+            ffmpegPath = backendBinPath;
+            this.logger.log(`Using FFmpeg from backend bin directory: ${ffmpegPath}`);
+          } else {
+            this.logger.error(`Could not find FFmpeg binary in any location`);
+          }
+        }
+      }
+    }
+    
     // Set FFmpeg path
-    ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-    this.logger.log(`FFmpeg path set to: ${ffmpegInstaller.path}`);
+    ffmpeg.setFfmpegPath(ffmpegPath);
+    this.logger.log(`FFmpeg path set to: ${ffmpegPath}`);
+    
+    // Also set FFprobe path - follow similar logic for ffprobe binary
+    let ffprobePath = '';
+    
+    // Try user's Documents/clippy/bin directory
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    const userProbePath = path.join(homeDir, 'Documents', 'clippy', 'bin', 'ffprobe');
+    
+    if (fs.existsSync(userProbePath)) {
+      ffprobePath = userProbePath;
+      this.logger.log(`Using FFprobe from user bin directory: ${ffprobePath}`);
+    } else {
+      // Try project root bin directory
+      const projectProbePath = path.join(__dirname, '../../../bin/ffprobe');
+      
+      if (fs.existsSync(projectProbePath)) {
+        ffprobePath = projectProbePath;
+        this.logger.log(`Using FFprobe from project bin directory: ${ffprobePath}`);
+      } else {
+        // Try backend/bin directory
+        const backendProbePath = path.join(__dirname, '../../../bin/ffprobe');
+        
+        if (fs.existsSync(backendProbePath)) {
+          ffprobePath = backendProbePath;
+          this.logger.log(`Using FFprobe from backend bin directory: ${ffprobePath}`);
+        } else {
+          this.logger.error(`Could not find FFprobe binary in any location`);
+        }
+      }
+    }
+    
+    // Set FFprobe path
+    ffmpeg.setFfprobePath(ffprobePath);
+    this.logger.log(`FFprobe path set to: ${ffprobePath}`);
   }
 
   /**
