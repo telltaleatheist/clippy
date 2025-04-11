@@ -8,14 +8,20 @@ import * as http from 'http';
 import { Server } from 'http';
 import * as fs from 'fs';
 
-// Configure logging early
-log.transports.file.level = 'info';
-log.transports.console.level = 'info';
-log.info('Application starting... Checking for other instances.');
-const isDevelopment = (process.env.NODE_ENV?.trim().toLowerCase() === 'development');
-log.info(`state of isDevelopment variable before it's called: ${isDevelopment}`);
+// Determine environment
+const isDevelopment = process.env.NODE_ENV?.trim().toLowerCase() === 'development';
 
-// Log important paths
+if (isDevelopment) {
+  log.transports.console.level = 'debug';
+  log.transports.file.level = false;
+} else {
+  log.transports.console.level = false;
+  log.transports.file.level = 'debug';
+}
+
+log.info('Application starting... Checking for other instances.');
+log.info(`Environment mode: ${isDevelopment ? 'development' : 'production'}`);
+
 log.info(`App path: ${app.getAppPath()}`);
 log.info(`__dirname: ${__dirname}`);
 log.info(`Resources path: ${process.resourcesPath || 'not available'}`);
@@ -95,11 +101,8 @@ if (!gotTheLock) {
   // Create main application window
   function createWindow(): void {
     log.info('Creating main application window...');
-    
-    // Setup binary permissions
     setupBinaries();
 
-    // Create the browser window
     mainWindow = new BrowserWindow({
       width: 900,
       height: 700,
@@ -111,10 +114,8 @@ if (!gotTheLock) {
         contextIsolation: true,
         webSecurity: true, // Enable web security
         allowRunningInsecureContent: false, // Disable insecure content
-        preload: path.join(__dirname, 'preload', 'preload.js')
+        preload: path.join(__dirname, '..', 'preload', 'preload.js')
       },
-      // Disable icon for now to avoid path issues
-      // icon: path.join(__dirname, '../../assets/icon.png') 
     });
     
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -177,16 +178,11 @@ if (!gotTheLock) {
           res.setHeader('Access-Control-Allow-Origin', '*');
           res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
           res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      
-          // Forward response
           res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
           proxyRes.pipe(res);
-          
-          // Log response status
           log.info(`[HTTP Server] Proxy response for ${url}: ${proxyRes.statusCode}`);
         });
       
-        // Pipe request body if exists
         req.pipe(proxyReq);
       
         proxyReq.on('error', (err) => {

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Settings } from '../models/settings.model';
 import { PathService } from './path.service';
+import { LoggerService } from '../core/logger.service';
 
 @Injectable({
   providedIn: 'root'
@@ -22,10 +23,11 @@ export class SettingsService {
   
   private settingsSubject = new BehaviorSubject<Settings>(this.defaultSettings);
   
-  constructor() {
+  constructor(private logger: LoggerService) {
+    this.logger.debug('Logger initialized in settings');
     this.loadSettings();
   }
-  
+
   /**
    * Load settings from local storage
    */

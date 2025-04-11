@@ -35,7 +35,7 @@ import { DownloadProgressComponent } from './components/download-progress/downlo
 import { SettingsComponent } from './components/settings/settings.component';
 
 // Environment
-import { environment } from '../config/environment';
+import { environment } from '../environment/environment';
 
 // Socket.io configuration
 const socketIoConfig: SocketIoConfig = { 

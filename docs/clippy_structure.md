@@ -103,6 +103,8 @@
 │   │   │   │       ├── settings.component.html
 │   │   │   │       ├── settings.component.scss
 │   │   │   │       └── settings.component.ts
+│   │   │   ├── core
+│   │   │   │   └── logger.service.ts
 │   │   │   ├── material.module.ts
 │   │   │   ├── models
 │   │   │   │   ├── download.model.ts
@@ -112,7 +114,7 @@
 │   │   │       ├── path.service.ts
 │   │   │       ├── settings.service.ts
 │   │   │       └── socket.service.ts
-│   │   ├── config
+│   │   ├── environment
 │   │   │   └── environment.ts
 │   │   ├── index.html
 │   │   ├── main.ts
@@ -128,5 +130,5 @@
 │   └── refresh-tree.sh
 └── tsconfig.tsbuildinfo
 
-33 directories, 95 files
+34 directories, 96 files
 ```

@@ -5,11 +5,11 @@
       "moduleResolution": "node",
       "esModuleInterop": true,
       "sourceMap": true,
-      "outDir": "../dist/preload",
+      "outDir": "../dist-electron/preload",
       "strict": true,
       "lib": ["ESNext", "DOM"],
-      "types": ["node"], // Remove "electron" from here
-      "skipLibCheck": true // This helps skip type checking of node_modules
+      "types": ["node"],
+      "skipLibCheck": true
     },
     "include": [
       "*.ts"
