@@ -3,15 +3,17 @@ import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as log from 'electron-log';
 import { autoUpdater } from 'electron-updater';
-import { downloadVideo, checkAndFixAspectRatio, processOutputFilename } from './download';
+import { downloadVideo, checkAndFixAspectRatio, processOutputFilename } from './utilities/download';
 import * as http from 'http';
-import * as https from 'https';
+import { Server } from 'http';
 import * as fs from 'fs';
 
 // Configure logging early
 log.transports.file.level = 'info';
 log.transports.console.level = 'info';
 log.info('Application starting... Checking for other instances.');
+const isDevelopment = (process.env.NODE_ENV?.trim().toLowerCase() === 'development');
+log.info(`state of isDevelopment variable before it's called: ${isDevelopment}`);
 
 // Log important paths
 log.info(`App path: ${app.getAppPath()}`);
@@ -42,7 +44,7 @@ if (!gotTheLock) {
   // Keep a global reference of the window object
   let mainWindow: BrowserWindow | null = null;
   let backendStarted = false;
-  let server = null;
+  let server: Server | null = null;
 
   /**
    * Setup binary files by ensuring they have executable permissions on macOS/Linux
@@ -53,12 +55,10 @@ if (!gotTheLock) {
       return;
     }
 
-    // Determine the location of binaries based on environment
-    const isDevelopment = !app.isPackaged;
-    const binPath = isDevelopment 
-      ? path.join(process.cwd(), 'bin')  // Development: root/bin
-      : path.join(process.resourcesPath || app.getAppPath(), 'bin');  // Production: resources/bin
-      
+    const binPath = isDevelopment
+    ? path.join(process.cwd(), 'bin') // Development: root/bin
+    : path.join(process.resourcesPath || app.getAppPath(), 'bin'); // Production: resources/bin
+
     log.info(`Setting up binaries at: ${binPath} (exists: ${fs.existsSync(binPath)})`);
     
     if (fs.existsSync(binPath)) {
@@ -99,11 +99,6 @@ if (!gotTheLock) {
     // Setup binary permissions
     setupBinaries();
 
-    // Determine if we're in development mode
-    const isDevelopment = !app.isPackaged;
-
-    log.info(`Running in ${isDevelopment ? 'development' : 'production'} mode`);
-
     // Create the browser window
     mainWindow = new BrowserWindow({
       width: 900,
@@ -136,10 +131,10 @@ if (!gotTheLock) {
     });
 
     // Always open DevTools in development mode
-    // In production, only open if we specifically want debugging
-    if (isDevelopment || process.env.DEBUG_PROD === 'true') {
+    if (isDevelopment) {
       mainWindow.webContents.openDevTools();
-      
+      mainWindow.setMenuBarVisibility(isDevelopment);
+
       // Add debug listeners only in development mode
       mainWindow.webContents.on('did-start-loading', () => log.info('Started loading'));
       mainWindow.webContents.on('did-stop-loading', () => log.info('Stopped loading'));
@@ -147,7 +142,7 @@ if (!gotTheLock) {
       mainWindow.webContents.on('did-fail-load', (_, code, desc) => log.info(`Failed loading: ${code} ${desc}`));
       mainWindow.webContents.on('crashed' as any, () => log.info('Renderer crashed'));
       mainWindow.webContents.on('unresponsive', () => log.info('Window unresponsive'));
-      
+
       // Log console messages from the renderer
       mainWindow.webContents.on('console-message', (_, level, message, line, sourceId) => {
         const levelNames = ['debug', 'info', 'warning', 'error', 'log'];
@@ -248,24 +243,18 @@ if (!gotTheLock) {
         return;
       }
 
-      // Serve static files
-      const isDevelopment = !app.isPackaged;
-      let frontendPath;
-
       // Determine the path to the frontend files based on whether we're in development or production
-      if (isDevelopment) {
-        frontendPath = path.join(__dirname, '../frontend/dist/clippy-frontend/browser');
-      } else {
-        frontendPath = path.join(process.resourcesPath, 'frontend/dist/clippy-frontend/browser');
-        // Alternative path if the first one doesn't exist
-        if (!fs.existsSync(frontendPath)) {
-          frontendPath = path.join(app.getAppPath(), 'frontend/dist/clippy-frontend/browser');
-        }
+      let frontendPath = isDevelopment
+      ? path.join(__dirname, '../frontend/dist/clippy-frontend/browser') // Development path
+      : path.join(process.resourcesPath, 'frontend/dist/clippy-frontend/browser'); // Production path
+    
+      // Fallback if the production path doesn't exist
+      if (!isDevelopment && !fs.existsSync(frontendPath)) {
+        frontendPath = path.join(app.getAppPath(), 'frontend/dist/clippy-frontend/browser');
       }
 
       log.info(`[HTTP Server] Frontend path: ${frontendPath} (exists: ${fs.existsSync(frontendPath)})`);
       
-      // If the frontend path doesn't exist, try to list parent directories to help with debugging
       if (!fs.existsSync(frontendPath)) {
         try {
           const parentPath = path.dirname(frontendPath);
@@ -283,7 +272,6 @@ if (!gotTheLock) {
       log.info(`[HTTP Server] Checking for file: ${filePath}`);
 
       if (fs.existsSync(filePath)) {
-        // Check if the requested path is a directory
         if (fs.statSync(filePath).isDirectory()) {
           filePath = path.join(filePath, 'index.html');
         }
@@ -333,29 +321,22 @@ if (!gotTheLock) {
         res.end('Not found - index.html could not be located');
       }
     });
-        
+
     if (mainWindow) {
       log.info('Loading application in main window...');
-      mainWindow.loadFile(path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html'));
+      mainWindow.loadURL('http://localhost:3000/');
     }
 
-    // Handle server errors
     server.on('error', (err) => {
       log.error(`HTTP server error: ${err.message}`);
     });
 
-    // Hide menu bar in production mode
-    const isDevelopmentMode = !app.isPackaged;
-    mainWindow.setMenuBarVisibility(isDevelopmentMode);
-
-    // Handle window closed
     mainWindow.on('closed', () => {
       log.info('Main window closed');
       mainWindow = null;
     });
 
-    // Check for updates
-    if (!isDevelopmentMode) {
+    if (isDevelopment) {
       try {
         log.info('Checking for updates...');
         autoUpdater.checkForUpdatesAndNotify().catch(err => {
@@ -374,7 +355,6 @@ if (!gotTheLock) {
       return Promise.resolve(true);
     }
   
-    // Create a lock file path
     const lockFilePath = path.join(app.getPath('userData'), 'backend.lock');
     
     // Check if lock file exists and is recent (less than 10 seconds old)
@@ -384,9 +364,8 @@ if (!gotTheLock) {
       
       if (fileAge < 10000) {  // 10 seconds
         log.info('Recent lock file found. Another backend instance may be running.');
-        return Promise.resolve(false); // Changed to false since we have no fallback
+        return Promise.resolve(false);
       } else {
-        // Lock file is stale, remove it
         fs.unlinkSync(lockFilePath);
       }
     }
@@ -398,10 +377,9 @@ if (!gotTheLock) {
       log.error('Failed to create lock file:', err);
     }
     
-    backendStarted = true; // Set immediately to prevent race conditions  
+    backendStarted = true;
   
     return new Promise((resolve) => {
-      // Catch uncaught errors globally
       process.on('uncaughtException', (err) => {
         log.error('Uncaught Exception:', err);
       });
@@ -411,31 +389,17 @@ if (!gotTheLock) {
       });
 
       try {
-        const isDevelopment = !app.isPackaged;
         const { spawn } = require('child_process');
 
         log.info('Starting backend server...');
         log.info(`Environment: ${isDevelopment ? 'Development' : 'Production'}`);
 
-        // Path to the backend main.js file
-        let backendMain: string;
-        
-        if (isDevelopment) {
-          backendMain = path.join(__dirname, '../backend/dist/src/main.js');
-        } else {
-          backendMain = path.join(process.resourcesPath, 'backend/dist/src/main.js');
-          // Fallback if the first path doesn't exist
-          if (!fs.existsSync(backendMain)) {
-            backendMain = path.join(app.getAppPath(), 'backend/dist/src/main.js');
-          }
-        }
-
+        let backendMain = path.join(app.getAppPath(), 'backend/dist/src/main.js');
         log.info(`Backend path: ${backendMain} (exists: ${fs.existsSync(backendMain)})`);
 
         if (!fs.existsSync(backendMain)) {
           log.error(`Backend server not found at: ${backendMain}`);
 
-          // Debug missing paths
           try {
             const parentDir = path.dirname(backendMain);
             const grandparentDir = path.dirname(parentDir);
@@ -484,9 +448,13 @@ if (!gotTheLock) {
 
         log.info(`Attempting to spawn Node.js process...`);
 
-        const frontendPath = path.join(app.getPath('userData'), 'Resources', 'frontend', 'dist', 'clippy-frontend', 'browser');
+        let frontendPath: string;
+        
+        // In both dev and prod, app.getAppPath() resolves to:
+        // - project root in dev
+        // - resources/app/ in production
+        frontendPath = path.join(app.getAppPath(), 'frontend', 'dist', 'clippy-frontend', 'browser');
         process.env.FRONTEND_PATH = frontendPath;
-
         log.info(`Frontend path for backend: ${frontendPath} (exists: ${fs.existsSync(frontendPath)})`);
 
         try {
@@ -710,7 +678,6 @@ if (!gotTheLock) {
    * Gets the appropriate path for a binary based on environment and platform
    */
   function getBinaryPath(binaryName: string): string {
-    const isDevelopment = !app.isPackaged;
     const executable = process.platform === 'win32' ? `${binaryName}.exe` : binaryName;
     
     let binPath: string;
@@ -836,7 +803,7 @@ if (!gotTheLock) {
       ffmpegPath: process.env.FFMPEG_PATH,
       ffprobePath: process.env.FFPROBE_PATH,
       resourcesPath: process.resourcesPath || app.getAppPath(),
-      isDevelopment: !app.isPackaged
+      isDevelopment: isDevelopment
     };
   });
 

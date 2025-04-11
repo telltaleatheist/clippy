@@ -2,30 +2,26 @@
   "name": "clippy",
   "version": "1.0.0",
   "description": "Video downloader application using NestJS and Angular",
-  "main": "./dist/main.js",
+  "main": "./dist-electron/main/main.js",
   "scripts": {
-    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:all": "npm install && npm run install:backend && npm run install:frontend && npm run install:electron",
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend && npm install",
-    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
-    "start:backend": "cd backend && npm run start",
-    "start:frontend": "cd frontend && npm run start",
+    "install:electron": "cd electron && [ -f package.json ] && npm install || echo 'No electron/package.json found, skipping...'",
     "build:all": "npm run build:backend && npm run build:frontend && npm run build:electron && npm run build:preload",
     "build:backend": "cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
-    "build:preload": "tsc --project preload/tsconfig.json",
-    "build:electron": "tsc -p tsconfig.json",
+    "build:electron": "tsc -p electron/tsconfig.electron.json",
+    "build:preload": "tsc -p electron/tsconfig.preload.json",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cd backend && npm run test",
     "test:frontend": "cd frontend && npm run test",
-    "start:prod": "npm run build && node backend/dist/src/main.js",
-    "electron": "electron .",
-    "electron:dev": "npm run build:all && cross-env NODE_ENV=development concurrently --kill-others \"npm run start:backend\" \"npx wait-on http://localhost:3000 && electron .\"",
-    "electron:prod": "npm run build:all && cross-env NODE_ENV=production electron .",
-    "package:win": "npm run build && electron-builder build --win --publish never",
-    "package:linux": "npm run build && electron-builder build --linux --publish never",
-    "package": "npm run build && electron-builder build",
-    "package:mac": "npm run build && electron-builder --mac"
+    "electron:dev": "npm run build:all && cross-env NODE_ENV=development electron .",
+    "electron": "npm run build:all && electron .",
+    "package": "npm run build:all && electron-builder build",
+    "package:win": "npm run build:all && electron-builder build --win --publish never",
+    "package:linux": "npm run build:all && electron-builder build --linux --publish never",
+    "package:mac": "npm run build:all && electron-builder --mac"
   },
   "keywords": [
     "video",
@@ -46,6 +42,7 @@
     "cross-env": "^7.0.3",
     "electron": "^35.1.4",
     "electron-builder": "^24.13.3",
+    "fs-extra": "^11.3.0",
     "typescript": "^5.8.3",
     "wait-on": "^8.0.3"
   },
@@ -66,12 +63,27 @@
       "package.json"
     ],
     "extraResources": [
-      {"from": "frontend/dist", "to": "frontend/dist"},
-      {"from": "backend/dist", "to": "backend/dist"},
-      {"from": "backend/node_modules", "to": "backend/node_modules"},
-      {"from": "bin", "to": "bin"},
-      {"from": "node_modules/@nestjs", "to": "node_modules/@nestjs"}
-      ],
+      {
+        "from": "frontend/dist",
+        "to": "frontend/dist"
+      },
+      {
+        "from": "backend/dist",
+        "to": "backend/dist"
+      },
+      {
+        "from": "backend/node_modules",
+        "to": "backend/node_modules"
+      },
+      {
+        "from": "bin",
+        "to": "bin"
+      },
+      {
+        "from": "node_modules/@nestjs",
+        "to": "node_modules/@nestjs"
+      }
+    ],
     "mac": {
       "category": "public.app-category.utilities",
       "target": [

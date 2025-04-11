@@ -16,6 +16,7 @@ async function bootstrap() {
     console.log('BACKEND SERVICE STARTING');
     console.log('Process ID:', process.pid);
     console.log('Environment:', process.env.NODE_ENV || 'development');
+    console.log('FRONTEND_PATH:', process.env.FRONTEND_PATH);
     console.log('Current directory:', process.cwd());
     console.log('====================================');
 
@@ -53,11 +54,6 @@ async function bootstrap() {
 
     const frontendPathFromEnv = process.env.FRONTEND_PATH;
     let frontendDistPath: string | null = null;
-    
-    console.log('Environment variables:');
-    console.log('FRONTEND_PATH:', process.env.FRONTEND_PATH);
-    console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('====================================');
 
     if (frontendPathFromEnv && fs.existsSync(frontendPathFromEnv)) {
       console.log(`Using frontend path from environment: ${frontendPathFromEnv}`);
@@ -92,7 +88,7 @@ async function bootstrap() {
 
       // Fallback route to support client-side routing
       expressApp.use((req, res, next) => {
-        if (req.url.startsWith('/api/') || req.url.startsWith('/socket.io/')) {
+        if (req.url.startsWith('/api') || req.url.startsWith('/socket.io/')) {
           return next();
         }
         

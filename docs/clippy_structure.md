@@ -1,9 +1,9 @@
 ```
-/Users/telltale/Documents/clippy
+/Users/telltale/Documents/clippy/scripts/..
 ├── backend
 │   ├── README.md
 │   ├── downloads
-│   ├── nest-cli.json
+│   │   └── history.json
 │   ├── package-lock 2.json
 │   ├── package-lock.json
 │   ├── package.json
@@ -30,6 +30,10 @@
 │   │   │   ├── ffmpeg.module.ts
 │   │   │   └── ffmpeg.service.ts
 │   │   ├── main.ts
+│   │   ├── path
+│   │   │   ├── path.controller.ts
+│   │   │   ├── path.module.ts
+│   │   │   └── path.service.ts
 │   │   └── types
 │   │       └── node-ffmpeg-installer.d.ts
 │   ├── test
@@ -40,9 +44,12 @@
 │   └── uploads
 ├── bin
 │   ├── ffmpeg
+│   ├── ffmpeg-apple-arm
+│   ├── ffmpeg-mac-intel
 │   ├── ffprobe
+│   ├── ffprobe-apple-arm
+│   ├── ffprobe-mac-intel
 │   └── yt-dlp
-├── clippy_structure.md
 ├── docs
 │   ├── clippy_structure.md
 │   ├── development.md
@@ -50,7 +57,15 @@
 │   ├── license.md
 │   ├── readme.md
 │   └── user_guide.md
-├── download.ts
+├── downloads
+│   └── history.json
+├── electron
+│   ├── main.ts
+│   ├── preload.ts
+│   ├── tsconfig.electron.json
+│   ├── tsconfig.preload.json
+│   └── utilities
+│       └── download.ts
 ├── frontend
 │   ├── angular.json
 │   ├── package-lock 2.json
@@ -94,10 +109,10 @@
 │   │   │   │   └── settings.model.ts
 │   │   │   └── services
 │   │   │       ├── api.service.ts
+│   │   │       ├── path.service.ts
 │   │   │       ├── settings.service.ts
 │   │   │       └── socket.service.ts
-│   │   ├── environments
-│   │   │   ├── environment.prod.ts
+│   │   ├── config
 │   │   │   └── environment.ts
 │   │   ├── index.html
 │   │   ├── main.ts
@@ -106,12 +121,12 @@
 │   ├── tsconfig.json
 │   └── tsconfig.spec.json
 ├── index.html
-├── main.ts
 ├── package-lock.json
 ├── package.json
-├── preload
-│   └── preload.js
-├── tsconfig.json
+├── scripts
+│   ├── copy-dev-bin.js
+│   └── refresh-tree.sh
 └── tsconfig.tsbuildinfo
+
+33 directories, 95 files
 ```
-28 directories, 83 files
