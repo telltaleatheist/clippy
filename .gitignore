@@ -5,4 +5,4 @@ npm-debug.log
 dist
 *.log
 backend/downloads/history.json
-/Users/telltale/Documents/Clippy/bin
+bin/*
