@@ -1,5 +1,3 @@
-tree ~/Documents/clippy -I 'dist|.*dist.*|zone.js|node_modules|eslint*|nest-cli*angular-devkit' > clippy_structure.md
-
 ```
 /Users/telltale/Documents/clippy
 ├── backend

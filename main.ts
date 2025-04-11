@@ -280,8 +280,8 @@ if (!gotTheLock) {
       }
       
       let filePath = path.join(frontendPath, url === '/' ? 'index.html' : url);
-      
-      // Check if file exists and serve it
+      log.info(`[HTTP Server] Checking for file: ${filePath}`);
+
       if (fs.existsSync(filePath)) {
         // Check if the requested path is a directory
         if (fs.statSync(filePath).isDirectory()) {
@@ -290,7 +290,7 @@ if (!gotTheLock) {
         
         if (fs.existsSync(filePath)) {
           log.info(`[HTTP Server] Serving file: ${filePath}`);
-          
+                
           const content = fs.readFileSync(filePath);
           const ext = path.extname(filePath).toLowerCase();
           
@@ -336,7 +336,7 @@ if (!gotTheLock) {
         
     if (mainWindow) {
       log.info('Loading application in main window...');
-      mainWindow.loadFile(path.join(__dirname, 'frontend/dist/clippy-frontend/browser/index.html'));
+      mainWindow.loadFile(path.join(__dirname, '../frontend/dist/clippy-frontend/browser/index.html'));
     }
 
     // Handle server errors
@@ -368,15 +368,38 @@ if (!gotTheLock) {
     }
   }
 
-  // This function has been heavily improved with better logging
   function startBackendServer(): Promise<boolean> {
     if (backendStarted) {
       log.info('Backend already started. Skipping.');
       return Promise.resolve(true);
     }
-
-    backendStarted = true; // Set immediately to prevent race conditions
-
+  
+    // Create a lock file path
+    const lockFilePath = path.join(app.getPath('userData'), 'backend.lock');
+    
+    // Check if lock file exists and is recent (less than 10 seconds old)
+    if (fs.existsSync(lockFilePath)) {
+      const stats = fs.statSync(lockFilePath);
+      const fileAge = Date.now() - stats.mtimeMs;
+      
+      if (fileAge < 10000) {  // 10 seconds
+        log.info('Recent lock file found. Another backend instance may be running.');
+        return Promise.resolve(false); // Changed to false since we have no fallback
+      } else {
+        // Lock file is stale, remove it
+        fs.unlinkSync(lockFilePath);
+      }
+    }
+    
+    // Create the lock file
+    try {
+      fs.writeFileSync(lockFilePath, new Date().toString());
+    } catch (err) {
+      log.error('Failed to create lock file:', err);
+    }
+    
+    backendStarted = true; // Set immediately to prevent race conditions  
+  
     return new Promise((resolve) => {
       // Catch uncaught errors globally
       process.on('uncaughtException', (err) => {
@@ -431,7 +454,7 @@ if (!gotTheLock) {
           }
 
           log.info('Backend not found. Falling back to minimal server...');
-          resolve(startFallbackServer());
+          resolve(false);
           return;
         }
 
@@ -504,12 +527,12 @@ if (!gotTheLock) {
 
           backend.on('error', (err: Error) => {
             log.error(`Error starting backend process: ${err.message}`);
-            resolve(startFallbackServer());
+            resolve(false); // Changed from resolve(startFallbackServer())
           });
-
+      
           backend.on('close', (code: number | null) => {
             log.info(`Backend process closed with code ${code}`);
-            if (code !== 0) resolve(startFallbackServer());
+            if (code !== 0) resolve(false);
           });
 
           backend.on('exit', (code: number | null) => {
@@ -538,7 +561,7 @@ if (!gotTheLock) {
               log.info(`Backend server status check: ${isRunning ? 'RUNNING' : 'NOT RUNNING'}`);
               if (!isRunning) {
                 log.warn('Backend server is not responding. Falling back to minimal server...');
-                startFallbackServer().then(() => resolve(true));
+                resolve(false);
               } else {
                 resolve(true);
               }
@@ -547,90 +570,11 @@ if (!gotTheLock) {
 
         } catch (spawnError) {
           log.error(`Failed to spawn process: ${spawnError}`);
-          resolve(startFallbackServer());
+          resolve(false);
         }
 
       } catch (outerError) {
         log.error(`Overall error in backend startup: ${outerError}`);
-        resolve(startFallbackServer());
-      }
-    });
-  }
-
-  /**
-   * Start a fallback minimal HTTP server if the NestJS backend fails
-   */
-  function startFallbackServer(): Promise<boolean> {
-    return new Promise((resolve) => {
-      log.info(`Starting fallback minimal server...`);
-      
-      try {
-        // Create a simple HTTP server
-        const fallbackServer = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
-          const url = req.url || '/';
-          log.info(`[Fallback Server] Received request: ${url}`);
-          
-          // Handle basic API endpoints
-          if (url === '/api') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'ok', message: 'Fallback server running' }));
-            return;
-          }
-          
-          if (url === '/api/path/default') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-              path: app.getPath('downloads'),
-              success: true 
-            }));
-            return;
-          }
-          
-          if (url === '/api/downloader/check') {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-              valid: true, 
-              message: 'Running in fallback mode. Limited functionality available.'
-            }));
-            return;
-          }
-          
-          // Default response for all other API routes
-          if (url.startsWith('/api/')) {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-              success: false,
-              error: 'Limited functionality',
-              message: 'The backend server is running in fallback mode with limited functionality.'
-            }));
-            return;
-          }
-          
-          // For non-API routes, pass through to the main HTTP server
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Not found' }));
-        });
-        
-        // Handle errors
-        fallbackServer.on('error', (err: Error) => {
-          log.error(`[Fallback Server] Error: ${err.message}`);
-          resolve(false);
-        });
-        
-        // Start listening
-        fallbackServer.listen(3000, 'localhost', () => {
-          log.info(`Fallback server started on port 3000`);
-          resolve(true);
-        });
-        
-        // Clean up when the app exits
-        app.on('before-quit', () => {
-          log.info('Shutting down fallback server...');
-          fallbackServer.close();
-        });
-        
-      } catch (error) {
-        log.error(`Failed to start fallback server: ${error}`);
         resolve(false);
       }
     });
@@ -639,7 +583,8 @@ if (!gotTheLock) {
   // This method will be called when Electron has finished initialization
   app.whenReady().then(async () => {
     log.info('Electron app ready, initializing...');
-    
+    logActiveProcesses();
+
     // Add environment variables for binary paths that NestJS can access
     process.env.YT_DLP_PATH = getBinaryPath('yt-dlp');
     process.env.FFMPEG_PATH = getBinaryPath('ffmpeg');
@@ -650,18 +595,117 @@ if (!gotTheLock) {
     log.info(`Using ffmpeg: ${process.env.FFMPEG_PATH}`);
     log.info(`Using ffprobe: ${process.env.FFPROBE_PATH}`);
 
-    // Start the backend first (or fallback)
-    await startBackendServer();
-    
+  // Start the backend first 
+  const backendStarted = await startBackendServer();
+  
+  if (!backendStarted) {
+    // Show error window instead of normal window
+    showBackendErrorWindow();
+  } else {
     // Then create the main window
     createWindow();
+  }
 
-    app.on('activate', () => {
-      // On macOS it's common to re-create a window when the dock icon is clicked
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+  app.on('activate', () => {
+    // On macOS it's common to re-create a window when the dock icon is clicked
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (backendStarted) {
+        createWindow();
+      } else {
+        showBackendErrorWindow();
+      }
+    }
   });
+});
 
+  function showBackendErrorWindow(): void {
+    const errorWindow = new BrowserWindow({
+      width: 500,
+      height: 300,
+      center: true,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: 'Backend Error',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    // Generate a simple HTML error page
+    const errorHtml = `
+      <html>
+        <head>
+          <title>Backend Error</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #333;
+              background-color: #f5f5f5;
+              text-align: center;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+            }
+            .container {
+              background-color: white;
+              padding: 30px;
+              border-radius: 8px;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              width: 100%;
+              max-width: 450px;
+            }
+            h2 { 
+              color: #e74c3c;
+              margin-top: 0;
+            }
+            p { 
+              line-height: 1.5;
+              margin-bottom: 20px;
+            }
+            button {
+              background-color: #3498db;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 4px;
+              cursor: pointer;
+            }
+            button:hover {
+              background-color: #2980b9;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Backend Server Error</h2>
+            <p>The application encountered an error while starting the backend server.</p>
+            <p>This could be because:</p>
+            <ul style="text-align: left;">
+              <li>Another instance of the application is already running</li>
+              <li>Port 3000 is being used by another application</li>
+              <li>There was an error during backend initialization</li>
+            </ul>
+            <p>Please close all instances of this application and try again.</p>
+            <button onclick="window.close()">Close Application</button>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    // Load the HTML content
+    errorWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
+    
+    // Handle window closed
+    errorWindow.on('closed', () => {
+      app.quit();
+    });
+  }
   /**
    * Gets the appropriate path for a binary based on environment and platform
    */
@@ -691,6 +735,29 @@ if (!gotTheLock) {
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
   });
+
+  function logActiveProcesses() {
+    const { exec } = require('child_process');
+    if (process.platform === 'darwin' || process.platform === 'linux') {
+      exec('lsof -i :3000', (error: any, stdout: any) => {
+        if (error) {
+          log.info('No process found using port 3000');
+          return;
+        }
+        log.info('Processes using port 3000:');
+        log.info(stdout);
+      });
+    } else if (process.platform === 'win32') {
+      exec('netstat -ano | findstr :3000', (error: any, stdout: any) => {
+        if (error) {
+          log.info('No process found using port 3000');
+          return;
+        }
+        log.info('Processes using port 3000:');
+        log.info(stdout);
+      });
+    }
+  }
 
   // Make sure the backend server is running
   function checkBackendServer(): Promise<boolean> {

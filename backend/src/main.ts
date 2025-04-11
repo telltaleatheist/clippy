@@ -115,11 +115,19 @@ async function bootstrap() {
     }
 
     const port = environment.port || process.env.PORT || 3000;
-    await app.listen(port, () => {
+    
+    try {
+      await app.listen(port);
       console.log(`=== APPLICATION STARTED ===`);
       console.log(`Server running on port ${port}`);
       console.log(`API endpoint: http://localhost:${port}/${environment.apiPrefix}`);
-    });
+    } catch (error) {
+      if ((error as any).code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use. Please make sure no other instance of the application is running.`);
+        console.error(`You can kill the process using port ${port} with: lsof -i :${port} -t | xargs kill -9`);
+      }
+      throw error; // Re-throw the error to be caught by the outer try/catch
+    }
   } catch (error) {
     console.error('=== BOOTSTRAP ERROR ===');
     console.error('Error during application startup:');
