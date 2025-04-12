@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { DownloaderService } from './downloader.service';
 import { BatchDownloaderService } from './batch-downloader.service';
 import { DownloadVideoDto } from '../common/dto/download.dto';
+import * as fs from 'fs';
 
 @Controller('downloader')
 export class DownloaderController {

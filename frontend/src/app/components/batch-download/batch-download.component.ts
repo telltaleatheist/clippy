@@ -21,7 +21,8 @@ import { BatchApiService } from '../../services/batch-api.service';
 import { SocketService } from '../../services/socket.service';
 import { SettingsService } from '../../services/settings.service';
 import { BROWSER_OPTIONS, QUALITY_OPTIONS } from '../download-form/download-form.constants';
-import { BatchQueueStatus, DownloadOptions, Settings } from '../../models/download.model';
+import { BatchQueueStatus, DownloadOptions } from '../../models/download.model';
+import { Settings } from '../../models/settings.model';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -143,7 +144,8 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
 
   pasteFromClipboard(index: number): void {
     navigator.clipboard.readText().then(text => {
-      (this.urls.at(index) as FormGroup).get('url')?.setValue(text);
+        const urlGroup = this.urls.controls[index] as FormGroup;
+        urlGroup.get('url')?.setValue(text);
     });
   }
 
@@ -210,12 +212,16 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.snackBar.open('Batch configuration updated', 'Dismiss', { duration: 3000 });
         
-        // Update settings
-        this.settingsService.updateSettings({
-          maxConcurrentDownloads: config.maxConcurrentDownloads,
-          batchProcessingEnabled: config.enabled
+        // Get current settings and update just the batch fields
+        this.settingsService.getSettings().subscribe(currentSettings => {
+            const updatedSettings = {
+            ...currentSettings,
+            maxConcurrentDownloads: config.maxConcurrentDownloads,
+            batchProcessingEnabled: config.enabled
+            };
+            this.settingsService.updateSettings(updatedSettings);
         });
-        
+
         this.refreshBatchStatus();
       },
       error: (error) => {
@@ -280,9 +286,10 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
       urls.forEach(url => {
         const group = this.createUrlField();
         group.get('url')?.setValue(url);
-        urlsArray.push(group);
+        // Use "as any" to bypass the type checking for the push operation
+        urlsArray.push(group as any);
       });
-      
+
       this.batchForm.setControl('urls', urlsArray);
       
       this.snackBar.open(`Added ${urls.length} URLs from clipboard`, 'Dismiss', { duration: 3000 });

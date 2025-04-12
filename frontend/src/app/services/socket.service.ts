@@ -2,7 +2,7 @@
 import { Injectable } from '@angular/core';
 import { Socket } from 'ngx-socket-io';
 import { Observable } from 'rxjs';
-import { DownloadProgress, HistoryItem } from '../models/download.model';
+import { DownloadProgress, HistoryItem, BatchQueueStatus } from '../models/download.model';
 
 @Injectable({
   providedIn: 'root'
@@ -48,21 +48,42 @@ export class SocketService {
   /**
    * Listen for download started event
    */
-  onDownloadStarted(): Observable<void> {
-    return this.socket.fromEvent<void, any>('download-started');
+  onDownloadStarted(): Observable<{url: string, jobId?: string}> {
+    return this.socket.fromEvent<{url: string, jobId?: string}, any>('download-started');
   }
 
   /**
    * Listen for download completed event
    */
-  onDownloadCompleted(): Observable<string> {
-    return this.socket.fromEvent<string, any>('download-completed');
+  onDownloadCompleted(): Observable<{outputFile: string, url: string, jobId?: string}> {
+    return this.socket.fromEvent<{outputFile: string, url: string, jobId?: string}, any>('download-completed');
   }
 
   /**
    * Listen for download failed event
    */
-  onDownloadFailed(): Observable<string> {
-    return this.socket.fromEvent<string, any>('download-failed');
+  onDownloadFailed(): Observable<{error: string, url: string, jobId?: string}> {
+    return this.socket.fromEvent<{error: string, url: string, jobId?: string}, any>('download-failed');
+  }
+
+  /**
+   * Listen for batch queue updates
+   */
+  onBatchQueueUpdated(): Observable<BatchQueueStatus> {
+    return this.socket.fromEvent<BatchQueueStatus, any>('batch-queue-updated');
+  }
+
+  /**
+   * Listen for batch completion
+   */
+  onBatchCompleted(): Observable<{timestamp: string}> {
+    return this.socket.fromEvent<{timestamp: string}, any>('batch-completed');
+  }
+
+  /**
+   * Listen for processing failures
+   */
+  onProcessingFailed(): Observable<{error: string, jobId: string}> {
+    return this.socket.fromEvent<{error: string, jobId: string}, any>('processing-failed');
   }
 }

@@ -1,25 +1,23 @@
 // clippy/frontend/src/app/models/download.model.ts
+export type QualityOption = '360' | '480' | '720' | '1080' | '1440' | '2160';
+export type BrowserType = 'auto' | 'chrome' | 'firefox' | 'edge' | 'safari' | 'brave' | 'opera';
+
 export interface DownloadOptions {
   url: string;
   outputDir?: string;
-  quality?: string;
+  quality?: QualityOption;
   convertToMp4?: boolean;
   fps?: number;
   useCookies?: boolean;
-  browser?: string;
+  browser?: BrowserType;
   fixAspectRatio?: boolean;
-}
-
-export interface DownloadResult {
-  success: boolean;
-  outputFile?: string;
-  error?: string;
 }
 
 export interface DownloadProgress {
   progress: number;
   task?: string;
   outputFile?: string;
+  jobId?: string;
 }
 
 export interface HistoryItem {
@@ -32,24 +30,33 @@ export interface HistoryItem {
   date: string;
 }
 
-export interface VideoMetadata {
-  width?: number;
-  height?: number;
-  duration?: number;
-  codecName?: string;
-  bitrate?: number;
-  fps?: number;
-  aspectRatio?: string;
-}
-
 export interface VideoInfo {
-  title?: string;
+  title: string;
+  uploader?: string;
   duration?: number;
   thumbnail?: string;
-  uploader?: string;
-  extractor?: string;
 }
 
-export type BrowserType = 'auto' | 'chrome' | 'firefox' | 'edge' | 'safari' | 'brave' | 'opera';
+export interface BatchJobInfo {
+  id: string;
+  url: string;
+  status: 'queued' | 'downloading' | 'processing' | 'completed' | 'failed';
+  error?: string;
+}
 
-export type QualityOption = '360' | '480' | '720' | '1080' | '1440' | '2160';
+export interface BatchQueueStatus {
+  downloadQueue: BatchJobInfo[];
+  processingQueue: BatchJobInfo[];
+  activeDownloads: string[];
+  maxConcurrentDownloads: number;
+  isProcessing: boolean;
+}
+
+export interface BatchDownloadOptions {
+  downloads: DownloadOptions[];
+}
+
+export interface BatchConfig {
+  maxConcurrentDownloads: number;
+  enabled: boolean;
+}

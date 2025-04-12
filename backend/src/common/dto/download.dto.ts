@@ -1,5 +1,24 @@
 // clippy/backend/src/common/dto/download.dto.ts
-import { IsBoolean, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl, Max, Min, ValidateNested, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class BatchConfigDto {
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  maxConcurrentDownloads: number;
+
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean = true;
+}
+
+export class BatchDownloadDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DownloadVideoDto)
+  downloads: DownloadVideoDto[];
+}
 
 export class DownloadVideoDto {
   @IsNotEmpty()
@@ -55,6 +74,24 @@ export class DownloadProgressDto {
   @IsOptional()
   @IsString()
   outputFile?: string;
+  
+  @IsOptional()
+  @IsString()
+  jobId?: string;
 }
 
-// fix this file - i havent copied anything over yet
+export class BatchJobStatusDto {
+  @IsString()
+  id: string;
+  
+  @IsString()
+  url: string;
+  
+  @IsString()
+  @IsIn(['queued', 'downloading', 'processing', 'completed', 'failed'])
+  status: string;
+  
+  @IsOptional()
+  @IsString()
+  error?: string;
+}

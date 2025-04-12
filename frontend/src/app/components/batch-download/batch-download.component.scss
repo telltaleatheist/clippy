@@ -1,0 +1,82 @@
+/* clippy/frontend/src/app/components/batch-download/batch-download.component.scss */
+
+.batch-download-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.status-card, .batch-form-card {
+  margin-bottom: 16px;
+}
+
+.status-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.status-item {
+  padding: 8px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.url-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.url-field-row {
+  display: flex;
+  align-items: center;
+}
+
+.url-input-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.url-field {
+  flex: 1;
+}
+
+.url-actions, .status-actions, .form-actions, .config-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.batch-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.checkbox-setting {
+  margin: 8px 0;
+}
+
+.queue-section {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.queue-section h3 {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

@@ -1,7 +1,7 @@
 // clippy/frontend/src/app/components/settings/settings.component.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -87,7 +87,10 @@ export class SettingsComponent implements OnInit {
       useCookies: [true],
       fixAspectRatio: [true],
       browser: ['auto'],
-      theme: ['light']
+      theme: ['light'],
+      // Batch processing settings
+      batchProcessingEnabled: [true],
+      maxConcurrentDownloads: [2, [Validators.required, Validators.min(1), Validators.max(10)]]
     });
   }
 
@@ -99,7 +102,10 @@ export class SettingsComponent implements OnInit {
       useCookies: settings.useCookies,
       fixAspectRatio: settings.fixAspectRatio,
       browser: settings.browser,
-      theme: settings.theme
+      theme: settings.theme,
+      // Batch processing settings
+      batchProcessingEnabled: settings.batchProcessingEnabled !== undefined ? settings.batchProcessingEnabled : true,
+      maxConcurrentDownloads: settings.maxConcurrentDownloads || 2
     });
   }
 

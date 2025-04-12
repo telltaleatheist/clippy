@@ -42,6 +42,7 @@ export class AppComponent implements OnInit {
   private socketService = inject(SocketService);
   private settingsService = inject(SettingsService);
   private snackBar = inject(MatSnackBar);
+  router: any;
 
   ngOnInit(): void {
     this.socketService.onConnect().subscribe(() => {
@@ -65,5 +66,9 @@ export class AppComponent implements OnInit {
       this.isDownloading = false;
       this.snackBar.open(`Download failed: ${error}`, 'Dismiss', { duration: 5000 });
     });
+  }
+
+  navigateToBatch(): void {
+    this.router.navigate(['/batch']);
   }
 }
