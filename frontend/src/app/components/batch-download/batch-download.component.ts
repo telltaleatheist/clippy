@@ -1,7 +1,7 @@
 // clippy/frontend/src/app/components/batch-download/batch-download.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -16,6 +16,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+
 
 import { BatchApiService } from '../../services/batch-api.service';
 import { SocketService } from '../../services/socket.service';
@@ -32,6 +33,7 @@ import { Subscription } from 'rxjs';
     CommonModule,
     ReactiveFormsModule,
     MatCardModule,
+    FormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -52,7 +54,9 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
   batchForm: FormGroup;
   configForm: FormGroup;
   batchQueueStatus: BatchQueueStatus | null = null;
-  
+  multiUrlText: string = '';
+  private disableUrlChangesListener = false;
+
   qualityOptions = QUALITY_OPTIONS;
   browserOptions = BROWSER_OPTIONS;
   
@@ -102,9 +106,55 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
       this.settingsSubscription.unsubscribe();
     }
   }
+  
+  onMultiUrlInput(text: string): void {
+    // Store the current focus state to restore it later
+    const activeElement = document.activeElement;
+    
+    const urls = text
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url.length > 0);
+    
+    // Get the current FormArray
+    const urlsFormArray = this.batchForm.get('urls') as FormArray;
+    
+    // Temporarily turn off valueChanges emission to prevent feedback loop
+    this.disableUrlChangesListener = true;
+    
+    // Clear and rebuild the form array entirely (simpler approach)
+    while (urlsFormArray.length) {
+      urlsFormArray.removeAt(0);
+    }
+    
+    // Add new form controls for each URL
+    urls.forEach(url => {
+      urlsFormArray.push(this.fb.group({ url: [url] }));
+    });
+    
+    // If no URLs, ensure at least one empty field
+    if (urlsFormArray.length === 0) {
+      urlsFormArray.push(this.createUrlField());
+    }
+    
+    // Re-enable the listener
+    setTimeout(() => {
+      this.disableUrlChangesListener = false;
+    }, 0);
+    
+    // Focus back to the original element if it was the textarea
+    if (activeElement && activeElement.tagName === 'TEXTAREA') {
+      (activeElement as HTMLTextAreaElement).focus();
+    }
+  }
 
+  onMultiUrlTextareaInput(event: Event): void {
+    const value = (event.target as HTMLTextAreaElement)?.value || '';
+    this.onMultiUrlInput(value);
+  }
+  
   createBatchForm(): FormGroup {
-    return this.fb.group({
+    const form = this.fb.group({
       urls: this.fb.array([this.createUrlField()]),
       quality: ['720'],
       convertToMp4: [true],
@@ -112,6 +162,25 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
       useCookies: [false],
       browser: ['auto'],
       outputDir: ['']
+    });
+
+    this.subscribeToUrlChanges(form.get('urls') as FormArray); // <-- sync text
+
+    return form;
+  }
+
+  subscribeToUrlChanges(urlArray: FormArray): void {
+    urlArray.valueChanges.subscribe(values => {
+      // Skip if the listener is disabled
+      if (this.disableUrlChangesListener) return;
+      
+      const newText = values
+        .map((v: { url: string; }) => v.url?.trim())
+        .filter((v: string | any[]) => v?.length > 0)
+        .join('\n');
+      
+      // Update the textarea with new content
+      this.multiUrlText = newText;
     });
   }
 
@@ -136,10 +205,32 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
     this.urls.push(this.createUrlField());
   }
 
-  removeUrlField(index: number): void {
-    if (this.urls.length > 1) {
-      this.urls.removeAt(index);
+  removeUrlField(i: number): void {
+    const urls = this.batchForm.get('urls') as FormArray;
+    
+    // Get the URL that's being removed
+    const removedUrl = (urls.at(i) as FormGroup).get('url')?.value;
+    
+    // Remove the URL from the form array
+    urls.removeAt(i);
+    
+    // Ensure at least one empty field remains
+    if (urls.length === 0) {
+      urls.push(this.createUrlField());
     }
+    
+    // Directly update the multiUrlText to reflect the current state of form controls
+    this.updateMultiUrlTextarea();
+  }
+
+  updateMultiUrlTextarea(): void {
+    if (this.disableUrlChangesListener) return;
+    
+    const urls = (this.batchForm.get('urls') as FormArray).controls
+      .map(control => control.value.url?.trim())
+      .filter(url => !!url); // ignore empty fields
+    
+    this.multiUrlText = urls.join('\n');
   }
 
   pasteFromClipboard(index: number): void {

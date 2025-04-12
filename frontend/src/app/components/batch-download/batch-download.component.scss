@@ -80,3 +80,11 @@
   flex-direction: column;
   gap: 16px;
 }
+
+.full-width {
+  width: 100%;
+}
+
+.url-textarea textarea {
+  resize: vertical;
+}

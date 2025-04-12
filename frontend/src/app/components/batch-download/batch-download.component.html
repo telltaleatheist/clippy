@@ -5,7 +5,7 @@
       <mat-card-header>
         <mat-card-title>Batch Queue Status</mat-card-title>
       </mat-card-header>
-      
+
       <mat-card-content>
         <div class="status-info">
           <div class="status-item">
@@ -121,6 +121,17 @@
       <mat-card-content>
         <form [formGroup]="batchForm" (ngSubmit)="onSubmit()">
           <!-- URL Fields -->
+          <mat-form-field appearance="outline" class="multiline-url-input full-width">
+            <mat-label>Paste multiple URLs (one per line)</mat-label>
+            <textarea
+            matInput
+            [(ngModel)]="multiUrlText"
+            (input)="onMultiUrlTextareaInput($event)"
+            rows="4"
+            style="width: 100%; margin-bottom: 12px;"
+            placeholder="Paste multiple URLs, one per line"></textarea>
+          </mat-form-field>
+
           <div formArrayName="urls" class="url-fields">
             <div *ngFor="let urlControl of urls.controls; let i = index" class="url-field-row">
               <div [formGroupName]="i" class="url-input-container">
@@ -131,6 +142,7 @@
                     placeholder="https://www.youtube.com/watch?v=..." 
                     formControlName="url" 
                     autocomplete="off"
+                    (input)="updateMultiUrlTextarea()"
                   >
                   <mat-error *ngIf="urlControl.get('url')?.hasError('required')">
                     URL is required
@@ -148,7 +160,7 @@
                     <mat-icon>content_paste</mat-icon>
                   </button>
                 </mat-form-field>
-                
+
                 <button 
                   type="button" 
                   mat-icon-button 
@@ -161,18 +173,13 @@
                 </button>
               </div>
             </div>
-            
+
             <div class="url-actions">
               <button type="button" mat-stroked-button (click)="addUrlField()">
                 <mat-icon>add</mat-icon> Add URL
               </button>
-              
-              <button type="button" mat-stroked-button (click)="pasteMultipleUrls()">
-                <mat-icon>playlist_add</mat-icon> Paste Multiple URLs
-              </button>
             </div>
-          </div>
-          
+          </div>          
           <!-- Batch Options -->
           <mat-expansion-panel>
             <mat-expansion-panel-header>

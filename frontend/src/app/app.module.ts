@@ -7,9 +7,19 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { SocketIoModule, SocketIoConfig } from 'ngx-socket-io';
-import { MaterialModule } from './material.module';
 
-// Angular Material
+import { MaterialModule } from './material.module';
+import { AppRoutingModule } from './app-routing.module';
+
+// Components
+import { AppComponent } from './app.component';
+import { BatchDownloadComponent } from './components/batch-download/batch-download.component';
+import { DownloadFormComponent } from './components/download-form/download-form.component';
+import { DownloadHistoryComponent } from './components/download-history/download-history.component';
+import { DownloadProgressComponent } from './components/download-progress/download-progress.component';
+import { SettingsComponent } from './components/settings/settings.component';
+
+// Angular Material Modules
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
@@ -26,49 +36,55 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
 
-// App Components
-import { AppComponent } from './app.component';
-import { AppRoutingModule } from './app-routing.module';
-import { DownloadFormComponent } from './components/download-form/download-form.component';
-import { DownloadHistoryComponent } from './components/download-history/download-history.component';
-import { DownloadProgressComponent } from './components/download-progress/download-progress.component';
-import { SettingsComponent } from './components/settings/settings.component';
-
 // Environment
 import { environment } from '../environment/environment';
 
 // Socket.io configuration
-const socketIoConfig: SocketIoConfig = { 
-  url: environment.apiBaseUrl, 
+const socketIoConfig: SocketIoConfig = {
+  url: environment.apiBaseUrl,
   options: {
     transports: ['websocket']
-  } 
+  }
 };
 
 @NgModule({
-    bootstrap: [AppComponent], imports: [BrowserModule,
-        CommonModule,
-        BrowserAnimationsModule,
-        MaterialModule,
-        FormsModule,
-        ReactiveFormsModule,
-        RouterModule,
-        AppRoutingModule,
-        SocketIoModule.forRoot(socketIoConfig),
-        // Angular Material
-        MatToolbarModule,
-        MatButtonModule,
-        MatInputModule,
-        MatFormFieldModule,
-        MatSelectModule,
-        MatCheckboxModule,
-        MatCardModule,
-        MatProgressBarModule,
-        MatIconModule,
-        MatListModule,
-        MatSnackBarModule,
-        MatTabsModule,
-        MatExpansionModule,
-        MatTooltipModule,
-        MatDialogModule], providers: [provideHttpClient(withInterceptorsFromDi())] })
+  imports: [
+    BrowserModule,
+    CommonModule,
+    BrowserAnimationsModule,
+    FormsModule,
+    ReactiveFormsModule,
+    RouterModule,
+    AppRoutingModule,
+    MaterialModule,
+    SocketIoModule.forRoot(socketIoConfig),
+
+    // Standalone Components (✅ moved to imports)
+    AppComponent,
+    BatchDownloadComponent,
+    DownloadFormComponent,
+    DownloadHistoryComponent,
+    DownloadProgressComponent,
+    SettingsComponent,
+
+    // Angular Material modules
+    MatToolbarModule,
+    MatButtonModule,
+    MatInputModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatCheckboxModule,
+    MatCardModule,
+    MatProgressBarModule,
+    MatIconModule,
+    MatListModule,
+    MatSnackBarModule,
+    MatTabsModule,
+    MatExpansionModule,
+    MatTooltipModule,
+    MatDialogModule
+  ],
+  providers: [provideHttpClient(withInterceptorsFromDi())],
+  bootstrap: [AppComponent]
+})
 export class AppModule { }
