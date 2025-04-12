@@ -1,0 +1,130 @@
+{
+  "name": "clippy",
+  "version": "1.0.0",
+  "description": "Video downloader application using NestJS and Angular",
+  "main": "./dist-electron/main/main.js",
+  "scripts": {
+    "install:all": "npm install && npm run install:backend && npm run install:frontend && npm run install:electron",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "install:electron": "cd electron && [ -f package.json ] && npm install || echo 'No electron/package.json found, skipping...'",
+    "build:all": "npm run build:backend && npm run build:frontend && npm run build:electron && npm run build:preload",
+    "build:backend": "tsc -p backend/tsconfig.json && cd backend && npm run build",
+    "build:frontend": "tsc -p frontend/tsconfig.json && cd frontend && npm run build",
+    "build:electron": "tsc -p electron/tsconfig.electron.json",
+    "build:preload": "tsc -p electron/tsconfig.preload.json",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd frontend && npm run test",
+    "electron:dev": "npm run build:all && cross-env NODE_ENV=development electron .",
+    "electron": "npm run build:all && electron .",
+    "package": "npm run build:all && electron-builder build",
+    "package:win": "npm run build:all && electron-builder build --win --publish never",
+    "package:linux": "npm run build:all && electron-builder build --linux --publish never",
+    "package:mac": "npm run build:all && electron-builder --mac"
+  },
+  "keywords": [
+    "video",
+    "downloader",
+    "nestjs",
+    "angular",
+    "typescript",
+    "youtube",
+    "tiktok"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.14.0",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.1.4",
+    "electron-builder": "^24.13.3",
+    "fs-extra": "^11.3.0",
+    "typescript": "^5.8.3",
+    "wait-on": "^8.0.3"
+  },
+  "dependencies": {
+    "electron-log": "^5.3.3",
+    "electron-updater": "^6.6.2",
+    "ngx-socket-io": "^4.3.1",
+    "p-queue": "^8.1.0"
+  },
+  "build": {
+    "appId": "com.owenmorgan.clippy",
+    "productName": "Clippy",
+    "directories": {
+      "output": "dist-electron",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "frontend/dist",
+        "to": "frontend/dist"
+      },
+      {
+        "from": "backend/dist",
+        "to": "backend/dist"
+      },
+      {
+        "from": "backend/node_modules",
+        "to": "backend/node_modules"
+      },
+      {
+        "from": "bin",
+        "to": "bin"
+      },
+      {
+        "from": "node_modules/@nestjs",
+        "to": "node_modules/@nestjs"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "LSUIElement": false
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    }
+  }
+}

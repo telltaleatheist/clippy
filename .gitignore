@@ -1,0 +1,34 @@
+# Node modules
+**/node_modules/
+
+# Output build directories
+**/dist/
+**/dist-electron/
+
+# Electron packaged app artifacts
+*.dmg
+*.exe
+*.app
+*.asar
+
+# Logs and local environment files
+*.log
+.env
+.env.local
+.env.*.local
+
+# Binaries
+bin/
+
+# Dependency lock files (optional, if not using lock files in version control)
+package-lock.json
+history.json
+pnpm-lock.yaml
+yarn.lock
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# macOS files
+.DS_Store

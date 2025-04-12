@@ -1,0 +1,65 @@
+/* You can add global styles to this file, and also import other style files */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+/* Global styles */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+body {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* Dark theme body overrides */
+.theme-dark body {
+  background-color: #303030;
+  color: #fff;
+}
+
+/* Common utility classes */
+.spacer {
+  flex: 1 1 auto;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.theme-dark ::-webkit-scrollbar-track {
+  background: #424242;
+}
+
+.theme-dark ::-webkit-scrollbar-thumb {
+  background: #686868;
+}
+
+.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: #7a7a7a;
+}
+
+/* Form controls */
+.mdc-text-field--filled:not(.mdc-text-field--disabled) {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.theme-dark .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
