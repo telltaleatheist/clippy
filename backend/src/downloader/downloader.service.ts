@@ -15,7 +15,7 @@ import { FfmpegService } from '../ffmpeg/ffmpeg.service';
 import { PathService } from '../path/path.service';
 import { join } from 'node:path';
 import { execFile, ExecFileOptions } from 'node:child_process';
-import { EnvironmentUtil } from 'src/environment/environment.util';
+import { EnvironmentUtil } from "../config/environment.util";
 
 @WebSocketGateway({ cors: true })
 @Injectable()

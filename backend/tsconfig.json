@@ -8,8 +8,12 @@
     "allowSyntheticDefaultImports": true,
     "target": "ES2021",
     "sourceMap": true,
+    "rootDir": "./src",
     "outDir": "./dist",
-    "baseUrl": "./",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"]
+    },
     "incremental": true,
     "skipLibCheck": true,
     "strictPropertyInitialization": false,
@@ -19,10 +23,17 @@
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "types": [
-      "jest",
-      "node"
-    ],
+    "types": ["jest", "node"],
     "typeRoots": ["./node_modules/@types"]
-  }
+  },
+  "exclude": [
+    "dist",
+    "node_modules",
+    "test",
+    "**/*.spec.ts",
+    "**/*.e2e-spec.ts"
+  ],
+  "include": [
+    "src/**/*"
+  ]
 }

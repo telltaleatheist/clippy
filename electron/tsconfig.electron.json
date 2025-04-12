@@ -4,7 +4,7 @@
     "module": "commonjs",
     "lib": ["ES2020", "DOM"],
     "outDir": "../dist-electron/main",
-    "rootDir": ".",
+    "rootDir": "./",
     "baseUrl": ".",
     "strict": true,
     "moduleResolution": "node",
@@ -17,15 +17,12 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": [
-    "main.ts",
-    "utilities/download.ts"
-  ],
+  "include": ["./**/*.ts"],
   "exclude": [
     "node_modules",
     "backend/**/*",
     "frontend/**/*",
-    "preload/**/*", 
+    "preload/**/*",
     "dist",
     "**/*.spec.ts"
   ]

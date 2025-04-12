@@ -1,4 +1,4 @@
-// clippy/main.ts
+// clippy/electron/main.ts
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as log from 'electron-log';
@@ -7,10 +7,9 @@ import { downloadVideo, checkAndFixAspectRatio, processOutputFilename } from './
 import * as http from 'http';
 import { Server } from 'http';
 import * as fs from 'fs';
+import { EnvironmentUtil } from './environment.util';
 
-// Determine environment
 const isDevelopment = process.env.NODE_ENV?.trim().toLowerCase() === 'development';
-
 if (isDevelopment) {
   log.transports.console.level = 'debug';
   log.transports.file.level = false;
@@ -52,52 +51,51 @@ if (!gotTheLock) {
   let backendStarted = false;
   let server: Server | null = null;
 
-  /**
-   * Setup binary files by ensuring they have executable permissions on macOS/Linux
-   */
   function setupBinaries(): void {
-    if (process.platform === 'win32') {
-      // No need to set permissions on Windows
-      return;
-    }
-
-    const binPath = isDevelopment
-    ? path.join(process.cwd(), 'bin') // Development: root/bin
-    : path.join(process.resourcesPath || app.getAppPath(), 'bin'); // Production: resources/bin
-
-    log.info(`Setting up binaries at: ${binPath} (exists: ${fs.existsSync(binPath)})`);
-    
-    if (fs.existsSync(binPath)) {
-      // List binaries for debugging
+    if (process.platform === 'win32') return; // No need for chmod on Windows
+  
+    const binaries = ['yt-dlp', 'ffmpeg', 'ffprobe'];
+  
+    const binaryPaths: Record<string, string> = binaries.reduce((acc, binary) => {
+      acc[binary] = EnvironmentUtil.getBinaryPath(binary);
+      return acc;
+    }, {} as Record<string, string>);
+  
+    // Attempt to read directory of the first binary to debug bin location
+    const firstBinaryPath = binaryPaths[binaries[0]];
+    const binDir = path.dirname(firstBinaryPath);
+  
+    log.info(`Setting up binaries in: ${binDir} (exists: ${fs.existsSync(binDir)})`);
+  
+    if (fs.existsSync(binDir)) {
       try {
-        const files = fs.readdirSync(binPath);
+        const files = fs.readdirSync(binDir);
         log.info(`Files in bin directory: ${files.join(', ')}`);
       } catch (err) {
         log.error(`Error listing bin directory: ${err}`);
       }
-      
-      // List of binaries to make executable
-      const binaries = ['yt-dlp', 'ffmpeg', 'ffprobe'];
-      
-      binaries.forEach(binary => {
-        const binaryPath = path.join(binPath, binary);
-        
-        if (fs.existsSync(binaryPath)) {
-          log.info(`Setting executable permissions for: ${binaryPath}`);
-          try {
-            fs.chmodSync(binaryPath, 0o755);
-          } catch (error) {
-            log.error(`Failed to set permissions for ${binaryPath}:`, error);
-          }
-        } else {
-          log.warn(`Binary not found: ${binaryPath}`);
-        }
-      });
     } else {
-      log.warn(`Bin directory not found: ${binPath}`);
+      log.warn(`Bin directory not found: ${binDir}`);
+      return;
     }
+  
+    // Ensure each binary is executable
+    binaries.forEach(binary => {
+      const fullPath = binaryPaths[binary];
+  
+      if (fs.existsSync(fullPath)) {
+        log.info(`Setting executable permissions for: ${fullPath}`);
+        try {
+          fs.chmodSync(fullPath, 0o755);
+        } catch (error) {
+          log.error(`Failed to set permissions for ${fullPath}:`, error);
+        }
+      } else {
+        log.warn(`Binary not found: ${fullPath}`);
+      }
+    });
   }
-
+  
   // Create main application window
   function createWindow(): void {
     log.info('Creating main application window...');
@@ -390,16 +388,17 @@ if (!gotTheLock) {
         log.info('Starting backend server...');
         log.info(`Environment: ${isDevelopment ? 'Development' : 'Production'}`);
 
-        let backendMain = path.join(app.getAppPath(), 'backend/dist/src/main.js');
+        let backendMain = path.join(app.getAppPath(), 'backend/dist/main.js');
+        log.info('✅ Using UPDATED backendMain from main.ts');
         log.info(`Backend path: ${backendMain} (exists: ${fs.existsSync(backendMain)})`);
 
         if (!fs.existsSync(backendMain)) {
           log.error(`Backend server not found at: ${backendMain}`);
-
+        
           try {
             const parentDir = path.dirname(backendMain);
             const grandparentDir = path.dirname(parentDir);
-
+        
             log.info(`Checking parent directory: ${parentDir} (exists: ${fs.existsSync(parentDir)})`);
             if (fs.existsSync(parentDir)) {
               log.info(`Parent directory contents: ${fs.readdirSync(parentDir).join(', ')}`);
@@ -454,21 +453,17 @@ if (!gotTheLock) {
         log.info(`Frontend path for backend: ${frontendPath} (exists: ${fs.existsSync(frontendPath)})`);
 
         try {
-          // Spawn the backend process
+          log.info(`Attempting to launch backend from: ${backendMain}`);
+
           const backend = spawn(nodePath, [backendMain], {
             env: {
               ...env,
               ELECTRON_RUN_AS_NODE: '1',
               CLIPPY_BACKEND: 'true',
               FRONTEND_PATH: frontendPath,
-              // Add this to help find node modules
               NODE_PATH: path.join(process.resourcesPath, 'backend/node_modules')
             },
-            ...(process.platform === 'win32' ? { detached: true } : {}),
-            ...(process.platform === 'darwin' ? { 
-              stdio: ['ignore', 'pipe', 'pipe'],
-              windowsHide: true 
-            } : {})
+            stdio: 'inherit', // ✅ Show backend logs in your terminal directly
           });
           
           log.info(`Process spawned successfully with PID: ${backend.pid}`);
