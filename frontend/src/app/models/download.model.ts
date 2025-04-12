@@ -60,3 +60,10 @@ export interface BatchConfig {
   maxConcurrentDownloads: number;
   enabled: boolean;
 }
+
+export interface DownloadResult {
+  success: boolean;
+  outputFile?: string;
+  error?: string;
+  jobId?: string;
+}

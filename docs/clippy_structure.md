@@ -29,6 +29,9 @@
 │   │   │   ├── environment.util.js
 │   │   │   └── environment.util.js.map
 │   │   ├── downloader
+│   │   │   ├── batch-downloader.service.d.ts
+│   │   │   ├── batch-downloader.service.js
+│   │   │   ├── batch-downloader.service.js.map
 │   │   │   ├── downloader.controller.d.ts
 │   │   │   ├── downloader.controller.js
 │   │   │   ├── downloader.controller.js.map
@@ -80,6 +83,7 @@
 │   │   │   ├── environment.ts
 │   │   │   └── environment.util.ts
 │   │   ├── downloader
+│   │   │   ├── batch-downloader.service.ts
 │   │   │   ├── downloader.controller.ts
 │   │   │   ├── downloader.module.ts
 │   │   │   └── downloader.service.ts
@@ -129,6 +133,7 @@
 ├── docs
 │   ├── clippy_structure.md
 │   ├── development.md
+│   ├── full_structure.md
 │   ├── installation.md
 │   ├── license.md
 │   ├── readme.md
@@ -155,9 +160,17 @@
 │   │   ├── clippy-frontend
 │   │   │   ├── 3rdpartylicenses.txt
 │   │   │   ├── browser
+│   │   │   │   ├── chunk-3L6MU4UR.js
+│   │   │   │   ├── chunk-FBIFNAG3.js
+│   │   │   │   ├── chunk-LVJSPKQZ.js
+│   │   │   │   ├── chunk-NPXZKQCT.js
+│   │   │   │   ├── chunk-ONK2FHRD.js
+│   │   │   │   ├── chunk-PM43KULW.js
+│   │   │   │   ├── chunk-XPFIVBT7.js
+│   │   │   │   ├── chunk-YD5R5LMI.js
 │   │   │   │   ├── favicon.ico
 │   │   │   │   ├── index.html
-│   │   │   │   ├── main-WMJJKAXV.js
+│   │   │   │   ├── main-UD3N7AU5.js
 │   │   │   │   ├── polyfills-FFHMD2TL.js
 │   │   │   │   └── styles-NSHBMMF5.css
 │   │   │   └── prerendered-routes.json
@@ -178,6 +191,9 @@
 │   │       │   ├── app.routes.js
 │   │       │   ├── app.routes.js.map
 │   │       │   ├── components
+│   │       │   │   ├── batch-download
+│   │       │   │   │   ├── batch-download.component.js
+│   │       │   │   │   └── batch-download.component.js.map
 │   │       │   │   ├── download-form
 │   │       │   │   │   ├── download-form.component.js
 │   │       │   │   │   ├── download-form.component.js.map
@@ -205,6 +221,8 @@
 │   │       │   └── services
 │   │       │       ├── api.service.js
 │   │       │       ├── api.service.js.map
+│   │       │       ├── batch-api.service.js
+│   │       │       ├── batch-api.service.js.map
 │   │       │       ├── path.service.js
 │   │       │       ├── path.service.js.map
 │   │       │       ├── settings.service.js
@@ -234,6 +252,10 @@
 │   │   │   ├── app.module.ts
 │   │   │   ├── app.routes.ts
 │   │   │   ├── components
+│   │   │   │   ├── batch-download
+│   │   │   │   │   ├── batch-download.component.html
+│   │   │   │   │   ├── batch-download.component.scss
+│   │   │   │   │   └── batch-download.component.ts
 │   │   │   │   ├── download-form
 │   │   │   │   │   ├── download-form.component.html
 │   │   │   │   │   ├── download-form.component.scss
@@ -259,6 +281,7 @@
 │   │   │   │   └── settings.model.ts
 │   │   │   └── services
 │   │   │       ├── api.service.ts
+│   │   │       ├── batch-api.service.ts
 │   │   │       ├── path.service.ts
 │   │   │       ├── settings.service.ts
 │   │   │       └── socket.service.ts
@@ -275,8 +298,9 @@
 ├── package.json
 ├── scripts
 │   ├── copy-dev-bin.js
+│   ├── refresh-full-tree.sh
 │   └── refresh-tree.sh
 └── tsconfig.tsbuildinfo
 
-60 directories, 218 files
+62 directories, 240 files
 ```

@@ -12,15 +12,17 @@ export class SettingsService {
   
   private readonly STORAGE_KEY = 'clippy_settings';
   private defaultSettings: Settings = {
-    quality: '720',
+    quality: "720",
     convertToMp4: true,
     fixAspectRatio: true,
-    useCookies: true,
-    browser: 'auto',
-    theme: 'light',
-    outputDir: ''
+    useCookies: false,
+    browser: "auto",
+    theme: "light",
+    outputDir: "",
+    batchProcessingEnabled: true,
+    maxConcurrentDownloads: 2
   };
-  
+
   private settingsSubject = new BehaviorSubject<Settings>(this.defaultSettings);
   
   constructor(private logger: LoggerService) {

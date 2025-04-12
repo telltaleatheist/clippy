@@ -1,7 +1,7 @@
 // clippy/frontend/src/app/app.component.ts
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -42,7 +42,7 @@ export class AppComponent implements OnInit {
   private socketService = inject(SocketService);
   private settingsService = inject(SettingsService);
   private snackBar = inject(MatSnackBar);
-  router: any;
+  public router = inject(Router);
 
   ngOnInit(): void {
     this.socketService.onConnect().subscribe(() => {

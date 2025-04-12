@@ -1,4 +1,3 @@
-
 // clippy/backend/src/downloader/downloader.service.ts
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -33,11 +32,6 @@ export class DownloaderService implements OnModuleInit {
     private readonly ffmpegService: FfmpegService,
     private readonly pathService: PathService,
   ) {
-    // Try multiple locations for the binary in this order:
-    // 1. Environment variable YT_DLP_PATH
-    // 2. From EnvironmentUtil
-    // 3. From ~/Documents/clippy/bin/ directory
-    // 4. Development fallback (../../../bin/yt-dlp)
     
     let resolvedPath = this.configService.get('YT_DLP_PATH') || EnvironmentUtil.getBinaryPath('yt-dlp');
     this.logger.log(`yt-dlp path initially resolved to: ${resolvedPath}`);
@@ -79,7 +73,7 @@ export class DownloaderService implements OnModuleInit {
     }
 
     this.logger.log(`__dirname: ${__dirname}`);
-    this.ytDlpPath = resolvedPath;
+    this.ytDlpPath = EnvironmentUtil.getBinaryPath('yt-dlp');
     this.logger.log(`yt-dlp resolved path (raw): ${this.ytDlpPath}`);
     this.historyFilePath = path.join(process.cwd(), 'downloads', 'history.json');
     this.ensureDirectoriesExist();
@@ -143,94 +137,69 @@ export class DownloaderService implements OnModuleInit {
     try {
       this.logger.log(`Starting download for URL: ${options.url}`);
       
-      // Use PathService to ensure we have a valid download location
       const downloadFolder = this.pathService.getSafePath(options.outputDir);
       this.logger.log(`Using download directory: ${downloadFolder}`);
       
-      // Ensure output directory exists
       if (!this.pathService.ensurePathExists(downloadFolder)) {
         throw new Error(`Cannot create or access download directory: ${downloadFolder}`);
       }
   
-      // Set date format for output template
       const dateFormat = '%(upload_date>%Y-%m-%d)s ';
       const outputTemplate = path.join(downloadFolder, `${dateFormat}%(title)s.%(ext)s`);
   
-      // Build yt-dlp options
       const ytDlpOptions: string[] = ['--verbose', '--output', outputTemplate];
-      
-      // Add no-check-certificates option
-      ytDlpOptions.push('--no-check-certificates');
-      
-      // Add no-playlist option
-      ytDlpOptions.push('--no-playlist');
-      
-      // Add force-overwrites option
-      ytDlpOptions.push('--force-overwrites');
+      ytDlpOptions.push('--no-check-certificates', '--no-playlist', '--force-overwrites');
   
-      // Add format option based on quality
       if (options.convertToMp4) {
         ytDlpOptions.push('--merge-output-format', 'mp4');
       }
   
-      // Add quality setting based on URL type
       if (options.url.includes('youtube.com') || options.url.includes('youtu.be')) {
         ytDlpOptions.push('--format', `bestvideo[height<=${options.quality}]+bestaudio/best[height<=${options.quality}]`);
       } else {
         ytDlpOptions.push('--format', `best[height<=${options.quality}]/best`);
       }
   
-      // Add browser cookies if requested
       if (options.useCookies && options.browser) {
-        if (options.browser !== 'auto') {
-          ytDlpOptions.push('--cookies-from-browser', options.browser);
-        } else {
-          // Auto-detect browser (handle this on frontend instead)
-          ytDlpOptions.push('--cookies-from-browser', 'chrome');
-        }
+        ytDlpOptions.push('--cookies-from-browser', options.browser !== 'auto' ? options.browser : 'chrome');
       }
-      
-      // Add the URL as the final argument
+  
       ytDlpOptions.push(options.url);
-      
-      // Start download process
+  
       let outputFile: string | null = null;
       let progressPercent = 0;
-      
-      // Notify clients that download has started
+  
       this.emitEvent('download-started', { url: options.url, jobId });
-      
-      // Create a promise that resolves when the download is complete
+  
       const downloadPromise = new Promise<DownloadResult>((resolve, reject) => {
-        // Use a type assertion to allow 'stdio' even though it's not officially part of ExecFileOptions
         const commandOptions = {
           stdio: ['ignore', 'pipe', 'pipe']
         } as ExecFileOptions;
-        
-        const downloadProcess = execFile(this.ytDlpPath, ytDlpOptions, commandOptions);
   
-        // Handle stdout data
+        // ✅ Get yt-dlp binary path dynamically
+        const ytDlpPath = EnvironmentUtil.getBinaryPath('yt-dlp');
+        this.logger.log(`Executing: ${ytDlpPath} ${ytDlpOptions.join(' ')}`); // ✅ Log resolved path
+  
+        const downloadProcess = execFile(ytDlpPath, ytDlpOptions, commandOptions);
+  
         if (downloadProcess.stdout) {
           downloadProcess.stdout.on('data', (data: Buffer) => {
             const output = data.toString();
-            
-            // Extract download progress
+  
             const progressMatch = output.match(/(\d+\.\d+)% of/);
             if (progressMatch) {
               progressPercent = parseFloat(progressMatch[1]);
-              this.emitEvent('download-progress', { 
+              this.emitEvent('download-progress', {
                 progress: progressPercent,
                 task: 'Downloading',
-                jobId // Include jobId in the event
+                jobId
               });
             }
-            
-            // Extract output filename
+  
             if (output.includes('[download] Destination:')) {
               outputFile = output.split('Destination: ')[1].trim();
             }
-            
-            // Extract merged filename
+  
             if (output.includes('[Merger] Merging formats into')) {
               const match = output.match(/"([^"]+)"/);
               if (match) {
@@ -239,127 +208,69 @@ export class DownloaderService implements OnModuleInit {
             }
           });
         }
-        
-        // Handle stderr data
+  
         if (downloadProcess.stderr) {
           downloadProcess.stderr.on('data', (data: Buffer) => {
             const output = data.toString();
-            
-            // Check if this is a debug message or a real error
             if (output.includes('[debug]')) {
-              // It's a debug message, log as debug or info
               this.logger.debug(`yt-dlp debug: ${output}`);
             } else {
-              // It's a real error
               this.logger.error(`yt-dlp error: ${output}`);
             }
           });
         }
-                
-        // Handle process completion
+  
         downloadProcess.on('close', async (code: number) => {
           if (code === 0 && outputFile && fs.existsSync(outputFile)) {
             this.logger.log(`Download successful: ${outputFile}`);
-            
-            // Process output filename
             outputFile = await this.processOutputFilename(outputFile);
-            
-            // For batch jobs, we'll skip processing and just return the result
+  
             if (jobId) {
-              // Notify clients that download has completed, but no processing yet
-              this.emitEvent('download-completed', { 
-                outputFile, 
-                url: options.url,
-                jobId
-              });
-              
-              // Resolve with success
-              resolve({
-                success: true,
-                outputFile
-              });
+              this.emitEvent('download-completed', { outputFile, url: options.url, jobId });
+              resolve({ success: true, outputFile });
               return;
             }
-            
-            // For single jobs, continue with processing
+  
             if (options.fixAspectRatio) {
               this.emitEvent('processing-progress', { task: 'Fixing aspect ratio' });
               const fixedFile = await this.ffmpegService.fixAspectRatio(outputFile);
-              if (fixedFile) {
-                outputFile = fixedFile;
-              }
+              if (fixedFile) outputFile = fixedFile;
             }
-            
-            // Add to download history
+  
             this.addToHistory(outputFile, options.url);
-            
-            // Notify clients that download has completed
-            this.emitEvent('download-completed', { 
-              outputFile, 
-              url: options.url,
-              jobId
-            });
-            
-            // Resolve promise
-            resolve({
-              success: true,
-              outputFile
-            });
+            this.emitEvent('download-completed', { outputFile, url: options.url, jobId });
+  
+            resolve({ success: true, outputFile });
           } else {
             const errorMsg = `Download failed with code ${code}`;
             this.logger.error(errorMsg);
-            
-            // Notify clients that download has failed
-            this.emitEvent('download-failed', { 
-              error: errorMsg, 
-              url: options.url,
-              jobId
-            });
-            
-            resolve({
-              success: false,
-              error: errorMsg
-            });
+            this.emitEvent('download-failed', { error: errorMsg, url: options.url, jobId });
+            resolve({ success: false, error: errorMsg });
           }
         });
-        
-        // Handle process error
+  
         downloadProcess.on('error', (err: Error) => {
           this.logger.error(`Download process error: ${err.message}`);
-          
-          // Notify clients that download has failed
-          this.emitEvent('download-failed', { 
-            error: err.message, 
-            url: options.url,
-            jobId
-          });
-          
-          reject({
-            success: false,
-            error: err.message
-          });
+          this.emitEvent('download-failed', { error: err.message, url: options.url, jobId });
+          reject({ success: false, error: err.message });
         });
       });
-      
-      // Return the result of the download
+  
       return downloadPromise;
     } catch (error) {
       this.logger.error('Error in downloadVideo:', error);
-      
-      // Notify clients that download has failed
-      this.emitEvent('download-failed', { 
+      this.emitEvent('download-failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
         url: options.url,
         jobId
       });
-      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
-    
+
   async processOutputFilename(filePath: string): Promise<string> {
     try {
       if (!fs.existsSync(filePath)) {

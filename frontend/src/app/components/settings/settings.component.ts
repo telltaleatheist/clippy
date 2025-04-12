@@ -84,7 +84,7 @@ export class SettingsComponent implements OnInit {
       outputDir: [''],
       quality: ['720'],
       convertToMp4: [true],
-      useCookies: [true],
+      useCookies: [false],
       fixAspectRatio: [true],
       browser: ['auto'],
       theme: ['light'],

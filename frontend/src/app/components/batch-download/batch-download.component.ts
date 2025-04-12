@@ -109,7 +109,7 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
       quality: ['720'],
       convertToMp4: [true],
       fixAspectRatio: [true],
-      useCookies: [true],
+      useCookies: [false],
       browser: ['auto'],
       outputDir: ['']
     });
@@ -154,7 +154,7 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
       quality: settings.quality,
       convertToMp4: settings.convertToMp4,
       fixAspectRatio: settings.fixAspectRatio,
-      useCookies: settings.useCookies,
+      useCookies: false,
       browser: settings.browser,
       outputDir: settings.outputDir
     });
