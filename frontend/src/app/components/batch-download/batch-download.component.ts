@@ -227,8 +227,11 @@ export class BatchDownloadComponent implements OnInit, OnDestroy {
     if (this.disableUrlChangesListener) return;
     
     const urls = (this.batchForm.get('urls') as FormArray).controls
-      .map(control => control.value.url?.trim())
-      .filter(url => !!url); // ignore empty fields
+      .map(control => {
+        const formGroup = control as FormGroup;
+        return formGroup.get('url')?.value?.trim() || '';
+      })
+      .filter(url => url !== ''); // ignore empty fields
     
     this.multiUrlText = urls.join('\n');
   }
