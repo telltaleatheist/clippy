@@ -32,3 +32,11 @@ yarn.lock
 
 # macOS files
 .DS_Store
+
+docs/full_structure.md
+docs/test-list.md
+scripts/refresh-tree.sh
+scripts/refresh-full-tree.sh
+scripts/copy-dev-bin.js
+
+backend/tsconfig.tsbuildinfo
