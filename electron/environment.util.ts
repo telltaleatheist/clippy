@@ -39,6 +39,8 @@ export class EnvironmentUtil {
   // Returns the path to a binary based on the current environment
   static getBinaryPath(binaryName: string): string {
     const envVar = process.env[`${binaryName.toUpperCase().replace('-', '_')}_PATH`];
+    
+    // If the environment variable is set and the binary exists at the given path, return it
     if (envVar && fs.existsSync(envVar)) return envVar;
   
     const pathsToTry: string[] = [];
