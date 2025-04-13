@@ -8,6 +8,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { environment } from './config/environment';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import * as log from 'electron-log';
+
+log.info('✅ Backend is starting...');
 
 async function bootstrap() {
   try {
