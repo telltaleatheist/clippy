@@ -1,8 +1,33 @@
 // src/environment/environment.util.ts
 import * as path from 'path';
 import * as fs from 'fs';
+import { app } from 'electron';
+import log from 'electron-log';
 
 export class EnvironmentUtil {
+
+  static getFrontEndPath(isDevelopment: boolean): string {
+    let frontendPath = isDevelopment
+      ? path.join(__dirname, '../frontend/dist/clippy-frontend/browser')
+      : path.join(process.resourcesPath, 'frontend/dist/clippy-frontend/browser');
+
+    log.info(`Frontend Path: ${frontendPath}`);
+    return frontendPath;
+  }
+
+  static getBackEndPath(isDevelopment: boolean): string {
+    let backendPath;
+    if (isDevelopment) {
+      // Development path: the backend is in the app's root directory
+      backendPath = path.join(app.getAppPath(), 'backend/dist/main.js');
+    } else {
+      // Production (packaged) path: adjust for the 'app.asar' structure
+      backendPath = path.join(process.resourcesPath, 'backend/dist/main.js');
+    }
+  
+    return backendPath;
+  }
+  
   static isDevelopment(): boolean {
     return process.env.NODE_ENV === 'development';
   }

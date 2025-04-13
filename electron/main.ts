@@ -9,8 +9,18 @@ import { Server } from 'http';
 import * as fs from 'fs';
 import { EnvironmentUtil } from './environment.util';
 
-const isDevelopment = process.env.NODE_ENV?.trim().toLowerCase() === 'development';
-if (isDevelopment) {
+// Check if the app is packaged
+const isPackaged = app.isPackaged;
+const isDevelopment = process.argv.includes('development') || (!isPackaged && process.env.NODE_ENV?.trim().toLowerCase() === 'development');
+const backendPath = EnvironmentUtil.getBackEndPath(isDevelopment);
+
+log.info(`Backend path: ${backendPath} (exists: ${fs.existsSync(backendPath)})`);
+
+if (!fs.existsSync(backendPath)) {
+  log.error(`Backend server not found at: ${backendPath}`);
+}
+
+  if (isDevelopment) {
   log.transports.console.level = 'debug';
   log.transports.file.level = false;
 } else {
@@ -237,18 +247,35 @@ if (!gotTheLock) {
         return;
       }
 
-      // Determine the path to the frontend files based on whether we're in development or production
-      let frontendPath = isDevelopment
-      ? path.join(__dirname, '../frontend/dist/clippy-frontend/browser') // Development path
-      : path.join(process.resourcesPath, 'frontend/dist/clippy-frontend/browser'); // Production path
-    
-      // Fallback if the production path doesn't exist
-      if (!isDevelopment && !fs.existsSync(frontendPath)) {
-        frontendPath = path.join(app.getAppPath(), 'frontend/dist/clippy-frontend/browser');
+      let frontendPath = EnvironmentUtil.getFrontEndPath(isDevelopment);
+      // Check if the frontend path exists
+      if (!fs.existsSync(frontendPath)) {
+        log.warn(`Primary frontend path doesn't exist: ${frontendPath}`);
+        
+        // Try alternative paths
+        const alternativePaths = [
+          // Check in Resources directory directly (for packaged app)
+          path.join(process.resourcesPath, 'frontend/dist/clippy-frontend/browser'),
+          
+          // Check relative to app directory
+          path.join(app.getAppPath(), '../frontend/dist/clippy-frontend/browser'),
+          
+          // Check in the parent of Resources
+          path.join(process.resourcesPath, '../frontend/dist/clippy-frontend/browser')
+        ];
+
+        for (const altPath of alternativePaths) {
+          log.info(`Trying alternative frontend path: ${altPath}`);
+          if (fs.existsSync(altPath)) {
+            frontendPath = altPath;
+            log.info(`Found valid frontend path: ${frontendPath}`);
+            break;
+          }
+        }
       }
 
       log.info(`[HTTP Server] Frontend path: ${frontendPath} (exists: ${fs.existsSync(frontendPath)})`);
-      
+
       if (!fs.existsSync(frontendPath)) {
         try {
           const parentPath = path.dirname(frontendPath);
@@ -388,15 +415,18 @@ if (!gotTheLock) {
         log.info('Starting backend server...');
         log.info(`Environment: ${isDevelopment ? 'Development' : 'Production'}`);
 
-        let backendMain = path.join(app.getAppPath(), 'backend/dist/main.js');
-        log.info('✅ Using UPDATED backendMain from main.ts');
-        log.info(`Backend path: ${backendMain} (exists: ${fs.existsSync(backendMain)})`);
+        const isPackaged = app.isPackaged;
+        let backendPath = EnvironmentUtil.getBackEndPath(isDevelopment);
+        let frontendPath = EnvironmentUtil.getFrontEndPath(isDevelopment);
 
-        if (!fs.existsSync(backendMain)) {
-          log.error(`Backend server not found at: ${backendMain}`);
-        
+        log.info('✅ Using UPDATED backendMain from main.ts');
+        log.info(`Backend path: ${backendPath} (exists: ${fs.existsSync(backendPath)})`);
+
+        if (!fs.existsSync(backendPath)) {
+          log.error(`Backend server not found at: ${backendPath}`);
+
           try {
-            const parentDir = path.dirname(backendMain);
+            const parentDir = path.dirname(backendPath);
             const grandparentDir = path.dirname(parentDir);
         
             log.info(`Checking parent directory: ${parentDir} (exists: ${fs.existsSync(parentDir)})`);
@@ -443,31 +473,54 @@ if (!gotTheLock) {
 
         log.info(`Attempting to spawn Node.js process...`);
 
-        let frontendPath: string;
-        
-        // In both dev and prod, app.getAppPath() resolves to:
-        // - project root in dev
-        // - resources/app/ in production
-        frontendPath = path.join(app.getAppPath(), 'frontend', 'dist', 'clippy-frontend', 'browser');
-        process.env.FRONTEND_PATH = frontendPath;
-        log.info(`Frontend path for backend: ${frontendPath} (exists: ${fs.existsSync(frontendPath)})`);
-
         try {
-          log.info(`Attempting to launch backend from: ${backendMain}`);
+          frontendPath = EnvironmentUtil.getFrontEndPath(isDevelopment);
+          log.info(`Attempting to launch backend from: ${backendPath}`);
+          log.info(`Attempting to access frontend path: ${frontendPath}`);
+          log.info(`Frontend exists: ${fs.existsSync(frontendPath)}`);
 
-          const backend = spawn(nodePath, [backendMain], {
+          /*
+          const fs = require('fs');
+          const frontendPath = '/Users/telltale/Documents/clippy/dist-electron/mac-arm64/Clippy.app/Contents/Resources/frontend/dist/clippy-frontend/browser';
+          const files = fs.readdirSync(frontendPath);
+          console.log(`Frontend directory contents: ${files}`);*/
+          const backend = spawn(nodePath, [backendPath], {
             env: {
               ...env,
               ELECTRON_RUN_AS_NODE: '1',
               CLIPPY_BACKEND: 'true',
               FRONTEND_PATH: frontendPath,
-              NODE_PATH: path.join(process.resourcesPath, 'backend/node_modules')
+              NODE_PATH: path.join(process.resourcesPath, 'backend/node_modules'),
+              YT_DLP_PATH: ytDlpPath,
+              FFMPEG_PATH: ffmpegPath,
+              FFPROBE_PATH: ffprobePath,
+              PORT: '3000',
+              NODE_ENV: 'production',
+              APP_ROOT: process.resourcesPath,
+              VERBOSE: 'true'
             },
-            stdio: 'inherit', // ✅ Show backend logs in your terminal directly
+            stdio: 'pipe',
+          });
+          
+          // Add these handlers with proper types
+          if (backend.stdout) {
+            backend.stdout.on('data', (data: Buffer) => {
+              log.info(`Backend stdout: ${data.toString().trim()}`);
+            });
+          }
+          
+          if (backend.stderr) {
+            backend.stderr.on('data', (data: Buffer) => {
+              log.error(`Backend stderr: ${data.toString().trim()}`);
+            });
+          }
+          
+          backend.on('error', (err: Error) => {
+            log.error(`Failed to start backend process: ${err.message}`);
           });
           
           log.info(`Process spawned successfully with PID: ${backend.pid}`);
-
+          
           if (backend.stdout) {
             backend.stdout.on('data', (data: Buffer) => {
               log.info(`[Backend] ${data.toString().trim()}`);

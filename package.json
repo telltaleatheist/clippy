@@ -60,31 +60,20 @@
       "output": "dist-electron",
       "buildResources": "assets"
     },
+    "extraMetadata": {
+      "main": "./dist-electron/main/main.js"
+    },
     "files": [
       "dist/**/*",
+      "dist-electron/**/*",
       "package.json"
     ],
     "extraResources": [
-      {
-        "from": "frontend/dist",
-        "to": "frontend/dist"
-      },
-      {
-        "from": "backend/dist",
-        "to": "backend/dist"
-      },
-      {
-        "from": "backend/node_modules",
-        "to": "backend/node_modules"
-      },
-      {
-        "from": "bin",
-        "to": "bin"
-      },
-      {
-        "from": "node_modules/@nestjs",
-        "to": "node_modules/@nestjs"
-      }
+      { "from": "frontend/dist/clippy-frontend", "to": "frontend/dist/clippy-frontend" },
+      { "from": "backend/dist",         "to": "backend/dist" },
+      { "from": "backend/node_modules", "to": "backend/node_modules" },
+      { "from": "bin",                  "to": "bin" },
+      { "from": "node_modules/@nestjs", "to": "node_modules/@nestjs" }
     ],
     "mac": {
       "category": "public.app-category.utilities",
