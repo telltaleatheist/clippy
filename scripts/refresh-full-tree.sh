@@ -10,7 +10,7 @@ echo "Refreshing tree in: $TARGET_FILE"
 echo '```' > "$TARGET_FILE"
 
 # Append the tree output
-tree "$SCRIPT_DIR/.." >> "$TARGET_FILE"
+tree "$SCRIPT_DIR/.." -I 'zone.js|node_modules|eslint*|nest-cli*|angular-devkit' >> "$TARGET_FILE"
 
 # Append the closing code block
 echo '```' >> "$TARGET_FILE"
