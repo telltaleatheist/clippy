@@ -40,3 +40,4 @@ scripts/copy-dev-bin.js
 
 backend/tsconfig.tsbuildinfo
 docs/full_structure.md
+tsconfig.tsbuildinfo
